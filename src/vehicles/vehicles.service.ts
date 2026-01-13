@@ -6,7 +6,7 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class VehiclesService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(createVehicleDto: CreateVehicleDto) {
     const { technicalSpecs, inspectionReport, ...data } = createVehicleDto;
@@ -23,8 +23,8 @@ export class VehiclesService {
       },
       include: {
         dealer: true,
-        media: true
-      }
+        media: true,
+      },
     });
   }
 
@@ -32,12 +32,12 @@ export class VehiclesService {
     return this.prisma.vehicle.findMany({
       include: {
         dealer: {
-          select: { name: true, verificationStatus: true }
+          select: { name: true, verificationStatus: true },
         },
         media: {
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
   }
 
@@ -47,11 +47,11 @@ export class VehiclesService {
       include: {
         dealer: true,
         media: true,
-      }
+      },
     });
   }
 
-  update(id: string, updateVehicleDto: UpdateVehicleDto) {
+  update(id: string, _updateVehicleDto: UpdateVehicleDto) {
     // Implementation for update would go here
     return `This action updates a #${id} vehicle`;
   }
@@ -60,7 +60,10 @@ export class VehiclesService {
     return this.prisma.vehicle.delete({ where: { id } });
   }
 
-  private generateAiTags(data: any, specs: any): string[] {
+  private generateAiTags(
+    data: Omit<CreateVehicleDto, 'technicalSpecs' | 'inspectionReport'>,
+    _specs: Record<string, any>,
+  ): string[] {
     const tags: string[] = [];
     if (data.mileage < 20000) tags.push('Baixa Quilometragem');
     if (data.yearFab >= new Date().getFullYear() - 2) tags.push('Seminovo');

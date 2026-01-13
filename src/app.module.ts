@@ -8,7 +8,13 @@ import { InteractionsModule } from './interactions/interactions.module';
 import { DealersModule } from './dealers/dealers.module';
 
 @Module({
-  imports: [PrismaModule, VehiclesModule, UsersModule, InteractionsModule, DealersModule],
+  imports: [
+    PrismaModule,
+    VehiclesModule,
+    UsersModule,
+    InteractionsModule,
+    DealersModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

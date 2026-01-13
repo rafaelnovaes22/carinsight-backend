@@ -4,7 +4,7 @@ import { UpdateInteractionDto } from './dto/update-interaction.dto';
 
 @Injectable()
 export class InteractionsService {
-  create(createInteractionDto: CreateInteractionDto) {
+  create(_createInteractionDto: CreateInteractionDto) {
     return 'This action adds a new interaction';
   }
 
@@ -16,7 +16,7 @@ export class InteractionsService {
     return `This action returns a #${id} interaction`;
   }
 
-  update(id: number, updateInteractionDto: UpdateInteractionDto) {
+  update(id: number, _updateInteractionDto: UpdateInteractionDto) {
     return `This action updates a #${id} interaction`;
   }
 

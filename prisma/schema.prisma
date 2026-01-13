@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  DEALER
+  CUSTOMER
+}
+
+enum VehicleCondition {
+  NEW
+  USED
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  VR360
+}
+
+enum InteractionType {
+  SAVED
+  VIEWED
+  CONTACTED
+  COMPARISON_ADD
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  role          UserRole  @default(CUSTOMER)
+  preferences   Json?     // Stores quiz results and specialized AI preferences
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  interactions  UserInteraction[]
+  dealerProfile Dealer?
+}
+
+model Dealer {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  name              String
+  contactInfo       Json     // Email, WhatsApp, Phone, Address
+  verificationStatus String  @default("PENDING") // PENDING, VERIFIED, REJECTED
+  rating            Float    @default(5.0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  vehicles          Vehicle[]
+}
+
+model Vehicle {
+  id              String           @id @default(uuid())
+  dealerId        String
+  dealer          Dealer           @relation(fields: [dealerId], references: [id])
+  
+  title           String
+  make            String
+  model           String
+  version         String?
+  yearModel       Int
+  yearFab         Int
+  price           Decimal          @db.Decimal(10, 2)
+  mileage         Int
+  condition       VehicleCondition @default(USED)
+  bodyType        String
+  
+  technicalSpecs  Json             // Engine, Power, Transmission, Consumption, Dimension
+  features        String[]         // Array of features like "Sunroof", "Leather Seats"
+  inspectionReport Json?           // Status of 150+ points inspection
+  aiTags          String[]         // Automatically generated tags: "Economic", "Family", "Robust"
+  
+  status          VehicleStatus    @default(AVAILABLE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  media           VehicleMedia[]
+  interactions    UserInteraction[]
+}
+
+model VehicleMedia {
+  id        String    @id @default(uuid())
+  vehicleId String
+  vehicle   Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  url       String
+  type      MediaType @default(IMAGE)
+  order     Int       @default(0)
+}
+
+model UserInteraction {
+  id        String          @id @default(uuid())
+  userId    String?         // Nullable for anonymous users (tracked via cookie/session)
+  user      User?           @relation(fields: [userId], references: [id])
+  vehicleId String
+  vehicle   Vehicle         @relation(fields: [vehicleId], references: [id])
+  type      InteractionType
+  metadata  Json?           // Extra data like duration, specific comparison context
+  createdAt DateTime        @default(now())
+}

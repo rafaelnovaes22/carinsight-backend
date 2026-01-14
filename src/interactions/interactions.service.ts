@@ -133,6 +133,136 @@ export class InteractionsService {
     return vehicles;
   }
 
+  // ============ COMPARAÇÃO - Lista Persistida ============
+
+  private readonly MAX_COMPARE_ITEMS = 3;
+
+  /**
+   * Adicionar veículo à lista de comparação
+   */
+  async addToComparison(vehicleId: string, sessionId: string) {
+    // Verificar se o veículo existe
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException(`Veículo ${vehicleId} não encontrado`);
+    }
+
+    // Verificar quantos já estão na comparação
+    const currentCount = await this.prisma.userInteraction.count({
+      where: {
+        type: 'COMPARISON_ADD',
+        metadata: {
+          path: ['sessionId'],
+          equals: sessionId,
+        },
+      },
+    });
+
+    if (currentCount >= this.MAX_COMPARE_ITEMS) {
+      return {
+        success: false,
+        message: `Máximo de ${this.MAX_COMPARE_ITEMS} veículos para comparar`,
+        currentCount,
+      };
+    }
+
+    // Verificar se já está na comparação
+    const existing = await this.prisma.userInteraction.findFirst({
+      where: {
+        vehicleId,
+        type: 'COMPARISON_ADD',
+        metadata: {
+          path: ['sessionId'],
+          equals: sessionId,
+        },
+      },
+    });
+
+    if (existing) {
+      return { success: true, message: 'Veículo já está na comparação' };
+    }
+
+    // Adicionar à comparação
+    await this.prisma.userInteraction.create({
+      data: {
+        vehicleId,
+        type: 'COMPARISON_ADD',
+        metadata: { sessionId },
+      },
+    });
+
+    return { success: true, message: 'Veículo adicionado à comparação' };
+  }
+
+  /**
+   * Remover veículo da lista de comparação
+   */
+  async removeFromComparison(vehicleId: string, sessionId: string) {
+    const result = await this.prisma.userInteraction.deleteMany({
+      where: {
+        vehicleId,
+        type: 'COMPARISON_ADD',
+        metadata: {
+          path: ['sessionId'],
+          equals: sessionId,
+        },
+      },
+    });
+
+    return {
+      success: result.count > 0,
+      message: result.count > 0 ? 'Removido da comparação' : 'Veículo não estava na comparação'
+    };
+  }
+
+  /**
+   * Obter lista de comparação com veículos completos
+   */
+  async getComparisonList(sessionId: string) {
+    const interactions = await this.prisma.userInteraction.findMany({
+      where: {
+        type: 'COMPARISON_ADD',
+        metadata: {
+          path: ['sessionId'],
+          equals: sessionId,
+        },
+      },
+      include: {
+        vehicle: {
+          include: {
+            media: true,
+            dealer: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return interactions.map((i) => i.vehicle);
+  }
+
+  /**
+   * Limpar lista de comparação
+   */
+  async clearComparison(sessionId: string) {
+    const result = await this.prisma.userInteraction.deleteMany({
+      where: {
+        type: 'COMPARISON_ADD',
+        metadata: {
+          path: ['sessionId'],
+          equals: sessionId,
+        },
+      },
+    });
+
+    return { success: true, deleted: result.count };
+  }
+
   /**
    * Registrar visualização de veículo
    */

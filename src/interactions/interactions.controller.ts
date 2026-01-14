@@ -80,6 +80,47 @@ export class InteractionsController {
     return this.interactionsService.getVehiclesByIds(vehicleIds);
   }
 
+  @Post('compare/:vehicleId')
+  @ApiOperation({ summary: 'Adicionar veículo à lista de comparação' })
+  @ApiParam({ name: 'vehicleId', description: 'ID do veículo a adicionar' })
+  @ApiHeader({ name: 'x-session-id', description: 'ID da sessão do usuário', required: true })
+  @ApiResponse({ status: 201, description: 'Adicionado com sucesso' })
+  @ApiResponse({ status: 400, description: 'Limite de 3 veículos atingido' })
+  addToComparison(
+    @Param('vehicleId') vehicleId: string,
+    @Headers('x-session-id') sessionId: string,
+  ) {
+    return this.interactionsService.addToComparison(vehicleId, sessionId);
+  }
+
+  @Delete('compare/:vehicleId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remover veículo da lista de comparação' })
+  @ApiParam({ name: 'vehicleId', description: 'ID do veículo a remover' })
+  @ApiHeader({ name: 'x-session-id', description: 'ID da sessão do usuário', required: true })
+  removeFromComparison(
+    @Param('vehicleId') vehicleId: string,
+    @Headers('x-session-id') sessionId: string,
+  ) {
+    return this.interactionsService.removeFromComparison(vehicleId, sessionId);
+  }
+
+  @Get('compare/list')
+  @ApiOperation({ summary: 'Obter lista de comparação da sessão' })
+  @ApiHeader({ name: 'x-session-id', description: 'ID da sessão do usuário', required: true })
+  @ApiResponse({ status: 200, description: 'Lista de veículos na comparação' })
+  getComparisonList(@Headers('x-session-id') sessionId: string) {
+    return this.interactionsService.getComparisonList(sessionId);
+  }
+
+  @Delete('compare/clear')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Limpar lista de comparação' })
+  @ApiHeader({ name: 'x-session-id', description: 'ID da sessão do usuário', required: true })
+  clearComparison(@Headers('x-session-id') sessionId: string) {
+    return this.interactionsService.clearComparison(sessionId);
+  }
+
   // ============ TRACKING ============
 
   @Post('view/:vehicleId')

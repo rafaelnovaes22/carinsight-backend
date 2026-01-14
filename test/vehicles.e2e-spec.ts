@@ -25,7 +25,7 @@ describe('VehiclesController (e2e)', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
-    // Importante: validar pipes globais também no E2E se definido no main.ts, 
+    // Importante: validar pipes globais também no E2E se definido no main.ts,
     // mas AppModule geralmente não aplica pipes globais automaticamente a menos que configurado.
     // O test-utils.ts tem createTestApp helper, mas aqui estamos usando padrão manual.
     // Vamos assumir validação básica por enquanto.
@@ -87,8 +87,9 @@ describe('VehiclesController (e2e)', () => {
       .send(createDto)
       .expect(201)
       .expect((res) => {
-        expect(res.body.title).toEqual('Civic 2024');
-        expect(res.body.id).toBeDefined();
+        const body = res.body as { title: string; id: string };
+        expect(body.title).toEqual('Civic 2024');
+        expect(body.id).toBeDefined();
         // ValidationPipe pode não estar ativo se não configurado explicitamente no teste
         // Ver main.ts
       });

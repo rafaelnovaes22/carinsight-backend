@@ -5,12 +5,9 @@ import {
   IsOptional,
   IsEnum,
   IsArray,
-  ValidateNested,
   Min,
-  IsJSON,
   IsObject,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger'; // Future proofing for Swagger
 
 export enum VehicleCondition {

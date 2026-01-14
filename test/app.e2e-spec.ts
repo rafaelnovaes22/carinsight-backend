@@ -12,7 +12,6 @@ describe('AppController (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     app = moduleFixture.createNestApplication();
     await app.init();
   });

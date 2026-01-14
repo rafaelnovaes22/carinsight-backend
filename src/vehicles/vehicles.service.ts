@@ -13,7 +13,7 @@ interface VehicleFilters {
 
 @Injectable()
 export class VehiclesService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(createVehicleDto: CreateVehicleDto) {
     const { technicalSpecs, inspectionReport, ...data } = createVehicleDto;
@@ -113,12 +113,14 @@ export class VehiclesService {
   }
 
   private generateAiTags(
-    data: any,
-    _specs: any,
+    data: { mileage?: number; yearFab?: number },
+
+    _specs: Record<string, unknown>,
   ): string[] {
     const tags: string[] = [];
-    if (data.mileage < 20000) tags.push('Baixa Quilometragem');
-    if (data.yearFab >= new Date().getFullYear() - 2) tags.push('Seminovo');
+    if (data.mileage && data.mileage < 20000) tags.push('Baixa Quilometragem');
+    if (data.yearFab && data.yearFab >= new Date().getFullYear() - 2)
+      tags.push('Seminovo');
     return tags;
   }
 }

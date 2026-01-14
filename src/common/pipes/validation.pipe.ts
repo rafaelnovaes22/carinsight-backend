@@ -11,8 +11,11 @@ import { plainToInstance } from 'class-transformer';
  * Pipe de validação customizado que usa class-validator
  * para validar DTOs de entrada
  */
+
+type ClassConstructor = new (...args: any[]) => object;
+
 @Injectable()
-export class ValidationPipe implements PipeTransform<any> {
+export class ValidationPipe implements PipeTransform<unknown> {
   async transform(value: any, { metatype }: ArgumentMetadata) {
     // Se não houver metatype ou for um tipo nativo, retorna o valor sem validação
     if (!metatype || !this.toValidate(metatype)) {
@@ -49,8 +52,8 @@ export class ValidationPipe implements PipeTransform<any> {
   /**
    * Verifica se o metatype deve ser validado
    */
-  private toValidate(metatype: Function): boolean {
-    const types: Function[] = [String, Boolean, Number, Array, Object];
+  private toValidate(metatype: ClassConstructor): boolean {
+    const types: ClassConstructor[] = [String, Boolean, Number, Array, Object];
     return !types.includes(metatype);
   }
 }

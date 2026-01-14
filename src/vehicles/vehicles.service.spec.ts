@@ -62,6 +62,7 @@ describe('VehiclesService', () => {
         aiTags: ['Baixa Quilometragem', 'Seminovo'],
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const result = await service.create(createDto);
 
       expect(prisma.vehicle.create).toHaveBeenCalledWith(
@@ -106,10 +107,9 @@ describe('VehiclesService', () => {
       expect(result).toEqual(mockVehicle);
     });
 
-    it('should return null if not found', async () => {
+    it('should throw NotFoundException if not found', async () => {
       mockPrismaService.vehicle.findUnique.mockResolvedValue(null);
-      const result = await service.findOne('999');
-      expect(result).toBeNull();
+      await expect(service.findOne('999')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -127,7 +127,9 @@ describe('VehiclesService', () => {
 
     it('should throw NotFoundException if vehicle does not exist', async () => {
       mockPrismaService.vehicle.findUnique.mockResolvedValue(null);
-      await expect(service.update('999', {})).rejects.toThrow(NotFoundException);
+      await expect(service.update('999', {})).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

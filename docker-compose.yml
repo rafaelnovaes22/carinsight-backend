@@ -5,8 +5,8 @@ services:
     image: postgres:15-alpine
     container_name: carinsight_postgres
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: carinsight
     ports:
       - "5432:5432"
@@ -14,6 +14,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - carinsight-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d carinsight"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine

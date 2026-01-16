@@ -22,9 +22,20 @@
     "test:e2e:cov": "jest --config ./test/jest-e2e.json --coverage",
     "test:docker:up": "docker-compose -f docker-compose.test.yml up -d",
     "test:docker:down": "docker-compose -f docker-compose.test.yml down",
-    "test:docker:clean": "docker-compose -f docker-compose.test.yml down -v"
+    "test:docker:clean": "docker-compose -f docker-compose.test.yml down -v",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "npx ts-node prisma/seed-renatinhus.ts",
+    "db:reset": "prisma migrate reset --force",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed-renatinhus.ts"
   },
   "dependencies": {
+    "@langchain/core": "^1.1.15",
+    "@langchain/langgraph": "^1.1.0",
+    "@langchain/langgraph-checkpoint": "^1.0.0",
+    "@langchain/openai": "^1.2.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/mapped-types": "*",
@@ -33,10 +44,15 @@
     "@prisma/client": "5.22.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "cohere-ai": "^7.20.0",
     "dotenv": "^17.2.3",
+    "groq-sdk": "^0.37.0",
+    "openai": "^6.16.0",
+    "pino": "^10.2.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

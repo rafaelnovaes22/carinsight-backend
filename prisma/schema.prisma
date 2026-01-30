@@ -86,6 +86,10 @@ model Vehicle {
   inspectionReport Json?           // Status of 150+ points inspection
   aiTags          String[]         // Automatically generated tags: "Economic", "Family", "Robust"
   
+  // Embedding for semantic search (1536 dimensions from OpenAI text-embedding-3-small)
+  embedding       Json?            // Stored as array of floats
+  embeddingText   String?          // Text used to generate embedding (for cache invalidation)
+  
   status          VehicleStatus    @default(AVAILABLE)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt

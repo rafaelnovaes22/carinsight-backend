@@ -63,7 +63,6 @@ describe('VehiclesService', () => {
         aiTags: ['Baixa Quilometragem', 'Seminovo'],
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const result = await service.create(createDto);
 
       expect(prisma.vehicle.create).toHaveBeenCalledWith(

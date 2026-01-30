@@ -8,8 +8,22 @@ import {
   CustomerProfile,
   IGraphState,
 } from './types/graph-state.types';
-import { VectorSearchService } from '../vector/vector-search.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  VectorSearchService,
+  SearchFilters,
+} from '../vector/vector-search.service';
+
+interface VehicleSearchResult {
+  id: string;
+  make: string;
+  model: string;
+  yearModel: number;
+  price: number;
+  mileage: number;
+  bodyType: string;
+  aiTags: string[];
+  score: number;
+}
 
 /**
  * Conversation session stored in memory (can be extended to use Redis/DB)
@@ -39,10 +53,7 @@ export class ConversationGraphService implements OnModuleInit {
   private app: Runnable;
   private sessions: Map<string, ConversationSession> = new Map();
 
-  constructor(
-    private vectorSearch: VectorSearchService,
-    private prisma: PrismaService,
-  ) {}
+  constructor(private vectorSearch: VectorSearchService) {}
 
   onModuleInit() {
     this.initializeGraph();
@@ -53,6 +64,7 @@ export class ConversationGraphService implements OnModuleInit {
    * Initialize the LangGraph workflow with search integration
    */
   private initializeGraph(): void {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.app = createConversationGraph({
       searchNode: this.createSearchNode(),
     });
@@ -73,7 +85,7 @@ export class ConversationGraphService implements OnModuleInit {
         const query = this.buildSearchQuery(state.profile);
 
         // Build filters from profile
-        const filters: any = {};
+        const filters: SearchFilters = {};
         if (state.profile.budget) {
           filters.priceMax = state.profile.budget * 1.1; // 10% flexibility
         }
@@ -88,11 +100,11 @@ export class ConversationGraphService implements OnModuleInit {
         }
 
         // Execute semantic search
-        const searchResults = await this.vectorSearch.searchSemantic(
+        const searchResults = (await this.vectorSearch.searchSemantic(
           query,
           5,
           filters,
-        );
+        )) as VehicleSearchResult[];
 
         if (searchResults.length === 0) {
           this.logger.log('No vehicles found matching criteria');
@@ -222,7 +234,7 @@ export class ConversationGraphService implements OnModuleInit {
    * Generate reasoning for why a vehicle matches
    */
   private generateReasoning(
-    vehicle: any,
+    vehicle: VehicleSearchResult,
     profile: Partial<CustomerProfile>,
   ): string {
     const reasons: string[] = [];
@@ -253,7 +265,7 @@ export class ConversationGraphService implements OnModuleInit {
    * Generate highlights for a vehicle
    */
   private generateHighlights(
-    vehicle: any,
+    vehicle: VehicleSearchResult,
     profile: Partial<CustomerProfile>,
   ): string[] {
     const highlights: string[] = [];
@@ -358,7 +370,13 @@ export class ConversationGraphService implements OnModuleInit {
               },
             ],
             // Extract preferences from the vehicle they're interested in
-            bodyType: vehicle.bodyType?.toLowerCase() as any,
+            bodyType: (vehicle.bodyType?.toLowerCase() || undefined) as
+              | 'suv'
+              | 'sedan'
+              | 'hatch'
+              | 'pickup'
+              | 'minivan'
+              | undefined,
             budget: Math.round(vehicle.price * 1.2), // Allow 20% flexibility
           };
 
@@ -382,6 +400,7 @@ export class ConversationGraphService implements OnModuleInit {
         messages: [...session.state.messages, new HumanMessage(message)],
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = await this.app.invoke(input, config);
 
       const finalState = result as IGraphState;
@@ -418,10 +437,13 @@ export class ConversationGraphService implements OnModuleInit {
         profile: finalState.profile,
         suggestedActions,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Error processing message: ${error.message}`,
-        error.stack,
+        `Error processing message: ${errorMessage}`,
+        errorStack,
       );
 
       return {

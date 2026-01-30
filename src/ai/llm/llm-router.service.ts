@@ -126,8 +126,10 @@ export class LlmRouterService {
             completionTokens: response.usage?.completion_tokens || 0,
           },
         };
-      } catch (error) {
-        this.logger.warn(`OpenAI failed: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        this.logger.warn(`OpenAI failed: ${errorMessage}`);
         this.recordFailure('openai');
       }
     }
@@ -152,8 +154,10 @@ export class LlmRouterService {
             completionTokens: response.usage?.completion_tokens || 0,
           },
         };
-      } catch (error) {
-        this.logger.warn(`Groq failed: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        this.logger.warn(`Groq failed: ${errorMessage}`);
         this.recordFailure('groq');
       }
     }

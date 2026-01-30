@@ -4,7 +4,7 @@ import {
   ArgumentMetadata,
   BadRequestException,
 } from '@nestjs/common';
-import { validate } from 'class-validator';
+import { validate, ValidationError } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 
 /**
@@ -12,21 +12,26 @@ import { plainToInstance } from 'class-transformer';
  * para validar DTOs de entrada
  */
 
-type ClassConstructor = new (...args: any[]) => object;
+type ClassConstructor = new (...args: unknown[]) => object;
 
 @Injectable()
-export class ValidationPipe implements PipeTransform<unknown> {
-  async transform(value: any, { metatype }: ArgumentMetadata) {
+export class ValidationPipe implements PipeTransform<unknown, Promise<object>> {
+  async transform(
+    value: unknown,
+    { metatype }: ArgumentMetadata,
+  ): Promise<object> {
     // Se não houver metatype ou for um tipo nativo, retorna o valor sem validação
     if (!metatype || !this.toValidate(metatype)) {
-      return value;
+      return value as object;
     }
 
     // Converte o objeto plain para a classe DTO
-    const object = plainToInstance(metatype, value);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const object = plainToInstance(metatype, value as object);
 
     // Valida o objeto usando class-validator
-    const errors = await validate(object, {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const errors: ValidationError[] = await validate(object, {
       whitelist: true, // Remove propriedades não decoradas
       forbidNonWhitelisted: true, // Lança erro se houver propriedades não permitidas
       skipMissingProperties: false, // Não pula propriedades faltando
@@ -46,6 +51,7 @@ export class ValidationPipe implements PipeTransform<unknown> {
       });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return object;
   }
 

@@ -52,28 +52,24 @@ export class AuthenticatedRequest {
   }
 
   get(url: string) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return request(this.app.getHttpServer())
       .get(url)
       .set('Authorization', `Bearer ${this.token}`);
   }
 
   post(url: string) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return request(this.app.getHttpServer())
       .post(url)
       .set('Authorization', `Bearer ${this.token}`);
   }
 
   patch(url: string) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return request(this.app.getHttpServer())
       .patch(url)
       .set('Authorization', `Bearer ${this.token}`);
   }
 
   delete(url: string) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return request(this.app.getHttpServer())
       .delete(url)
       .set('Authorization', `Bearer ${this.token}`);

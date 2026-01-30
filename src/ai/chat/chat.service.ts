@@ -18,10 +18,25 @@ interface SendMessageDto {
   content: string;
 }
 
+interface VehicleData {
+  id: string;
+  make: string;
+  model: string;
+  yearModel: number;
+  price: number;
+  mileage?: number;
+  bodyType?: string;
+}
+
 export interface ChatResponse {
   response: string;
   suggestedActions?: string[];
-  recommendations?: any[];
+  recommendations?: Array<{
+    vehicleId: string;
+    matchScore: number;
+    reasoning: string;
+    vehicle?: VehicleData;
+  }>;
   currentNode?: string;
 }
 
@@ -54,7 +69,7 @@ export class ChatService {
     this.logger.log(`Starting chat session: ${sessionId}`);
 
     let vehicleContext = '';
-    let vehicleData: any = null;
+    let vehicleData: VehicleData | null = null;
 
     // If vehicle context provided, get vehicle details and set as lead context
     if (dto.vehicleId) {

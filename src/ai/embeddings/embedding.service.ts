@@ -34,8 +34,10 @@ export class EmbeddingService {
       });
 
       return response.data[0]?.embedding || null;
-    } catch (error) {
-      this.logger.error(`Failed to generate embedding: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to generate embedding: ${errorMessage}`);
       return null;
     }
   }
@@ -53,10 +55,10 @@ export class EmbeddingService {
       });
 
       return response.data.map((item) => item.embedding);
-    } catch (error) {
-      this.logger.error(
-        `Failed to generate batch embeddings: ${error.message}`,
-      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to generate batch embeddings: ${errorMessage}`);
       return texts.map(() => null);
     }
   }
@@ -209,9 +211,11 @@ export class EmbeddingService {
             },
           });
           synced++;
-        } catch (error) {
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
           this.logger.error(
-            `Failed to save embedding for ${vehicle.id}: ${error.message}`,
+            `Failed to save embedding for ${vehicle.id}: ${errorMessage}`,
           );
           failed++;
         }

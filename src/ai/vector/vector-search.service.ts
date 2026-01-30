@@ -24,7 +24,7 @@ export interface VehicleSearchResult {
   }[];
 }
 
-interface SearchFilters {
+export interface SearchFilters {
   priceMin?: number;
   priceMax?: number;
   yearMin?: number;

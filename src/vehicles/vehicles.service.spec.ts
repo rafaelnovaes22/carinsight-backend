@@ -155,8 +155,12 @@ describe('VehiclesService', () => {
 
       const result = await service.remove('1');
       expect(result).toEqual(mockVehicle);
-      expect(prisma.vehicle.findUnique).toHaveBeenCalledWith({ where: { id: '1' } });
-      expect(prisma.vehicle.delete).toHaveBeenCalledWith({ where: { id: '1' } });
+      expect(prisma.vehicle.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
+      expect(prisma.vehicle.delete).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
     });
 
     it('should throw NotFoundException if vehicle does not exist', async () => {

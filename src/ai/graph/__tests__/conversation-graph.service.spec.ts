@@ -46,7 +46,10 @@ describe('ConversationGraphService', () => {
 
     it('should extract name from message', async () => {
       // Test with a clearer name pattern
-      const result = await service.processMessage('test-thread-2', 'Oi, sou João');
+      const result = await service.processMessage(
+        'test-thread-2',
+        'Oi, sou João',
+      );
 
       expect(result).toBeDefined();
       // The response should contain the name if extracted
@@ -55,12 +58,18 @@ describe('ConversationGraphService', () => {
 
     it('should move to discovery after name extraction', async () => {
       // First message with name
-      const result1 = await service.processMessage('test-thread-3', 'Oi, sou Maria');
+      const result1 = await service.processMessage(
+        'test-thread-3',
+        'Oi, sou Maria',
+      );
       // The greeting node should have extracted the name
       expect(result1.response).toContain('Maria');
 
       // Second message with preferences
-      const result2 = await service.processMessage('test-thread-3', 'Quero um SUV até 80 mil');
+      const result2 = await service.processMessage(
+        'test-thread-3',
+        'Quero um SUV até 80 mil',
+      );
       expect(result2.profile?.bodyType).toBe('suv');
       expect(result2.profile?.budget).toBe(80000);
     });
@@ -83,16 +92,22 @@ describe('ConversationGraphService', () => {
 
       // Start conversation
       await service.processMessage('test-thread-4', 'Oi, sou Pedro');
-      
+
       // Provide preferences
-      const result = await service.processMessage('test-thread-4', 'Quero um sedan até 100 mil');
+      const _result = await service.processMessage(
+        'test-thread-4',
+        'Quero um sedan até 100 mil',
+      );
 
       expect(vectorSearchMock.searchSemantic).toHaveBeenCalled();
     });
 
     it('should handle handoff request', async () => {
       await service.processMessage('test-thread-5', 'Oi, sou Ana');
-      const result = await service.processMessage('test-thread-5', 'Quero falar com um vendedor');
+      const result = await service.processMessage(
+        'test-thread-5',
+        'Quero falar com um vendedor',
+      );
 
       expect(result.response).toContain('consultor');
       expect(result.suggestedActions).toContain('HANDOFF_HUMAN');
@@ -117,9 +132,15 @@ describe('ConversationGraphService', () => {
       // Start conversation with name
       await service.processMessage('test-thread-6', 'Oi, sou Carlos');
       // Provide preferences to trigger search
-      await service.processMessage('test-thread-6', 'Quero um sedan até 100 mil');
+      await service.processMessage(
+        'test-thread-6',
+        'Quero um sedan até 100 mil',
+      );
       // Now ask about financing
-      const result = await service.processMessage('test-thread-6', 'Quero financiar');
+      const result = await service.processMessage(
+        'test-thread-6',
+        'Quero financiar',
+      );
 
       // Should either be in financing or recommendation node handling financing
       expect(['financing', 'recommendation']).toContain(result.currentNode);
@@ -129,7 +150,7 @@ describe('ConversationGraphService', () => {
   describe('session management', () => {
     it('should create new session for new thread', async () => {
       await service.processMessage('new-thread', 'Olá');
-      
+
       const session = service.getSession('new-thread');
       expect(session).toBeDefined();
       expect(session?.threadId).toBe('new-thread');
@@ -153,7 +174,7 @@ describe('ConversationGraphService', () => {
 
     it('should count active sessions', async () => {
       const initialCount = service.getActiveSessionsCount();
-      
+
       await service.processMessage('count-thread-1', 'Olá');
       await service.processMessage('count-thread-2', 'Olá');
 
@@ -178,16 +199,20 @@ describe('ConversationGraphService', () => {
       );
 
       const session = service.getSession('lead-thread');
-      
+
       // Should have the vehicle in recommendations
       expect(session?.state.recommendations.length).toBe(1);
       expect(session?.state.recommendations[0].vehicleId).toBe('vehicle-123');
-      expect(session?.state.recommendations[0].reasoning).toBe('Veículo que você selecionou');
-      
+      expect(session?.state.recommendations[0].reasoning).toBe(
+        'Veículo que você selecionou',
+      );
+
       // Should have extracted preferences from the vehicle
       expect(session?.state.profile._lastShownVehicles).toBeDefined();
-      expect(session?.state.profile._lastShownVehicles?.[0].vehicleId).toBe('vehicle-123');
-      
+      expect(session?.state.profile._lastShownVehicles?.[0].vehicleId).toBe(
+        'vehicle-123',
+      );
+
       // Response should mention the vehicle
       expect(result.response).toContain('Toyota');
       expect(result.response).toContain('Corolla');

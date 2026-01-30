@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ConversationGraphService, ConversationResponse, ConversationSession } from '../graph/conversation-graph.service';
+import {
+  ConversationGraphService,
+  ConversationSession,
+} from '../graph/conversation-graph.service';
 import { VectorSearchService } from '../vector/vector-search.service';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -36,8 +39,8 @@ export class ChatService {
    * Start a new chat session
    * Can be contextual (with vehicle) or general conversation
    */
-  async startChat(dto: StartChatDto): Promise<{ 
-    sessionId: string; 
+  async startChat(dto: StartChatDto): Promise<{
+    sessionId: string;
     greeting: string;
     vehicle?: {
       id: string;
@@ -99,7 +102,9 @@ export class ChatService {
           },
         },
       });
-      this.logger.log(`Lead created for vehicle ${dto.vehicleId} in session ${sessionId}`);
+      this.logger.log(
+        `Lead created for vehicle ${dto.vehicleId} in session ${sessionId}`,
+      );
     }
 
     return {

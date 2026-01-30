@@ -63,7 +63,7 @@ function formatCustomerSummary(state: IGraphState): string {
 /**
  * Negotiation Node - Handles final steps and handoff to human
  */
-export async function negotiationNode(state: IGraphState): Promise<Partial<IGraphState>> {
+export function negotiationNode(state: IGraphState): Partial<IGraphState> {
   const lastMessage = state.messages[state.messages.length - 1];
 
   if (!lastMessage || typeof lastMessage.content !== 'string') {
@@ -74,10 +74,10 @@ export async function negotiationNode(state: IGraphState): Promise<Partial<IGrap
       messages: [
         new AIMessage(
           `Perfeito! Vou te conectar com um de nossos consultores. 👨‍💼\n\n` +
-          summary +
-          `\n━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `Um consultor vai entrar em contato pelo WhatsApp em breve!\n\n` +
-          `_Enquanto isso, posso te ajudar com mais alguma coisa?_`
+            summary +
+            `\n━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `Um consultor vai entrar em contato pelo WhatsApp em breve!\n\n` +
+            `_Enquanto isso, posso te ajudar com mais alguma coisa?_`,
         ),
       ],
       metadata: {
@@ -119,7 +119,7 @@ export async function negotiationNode(state: IGraphState): Promise<Partial<IGrap
       messages: [
         new AIMessage(
           `Claro! Vamos buscar outras opções. 🔍\n\n` +
-          `Me conta o que você está procurando agora?`
+            `Me conta o que você está procurando agora?`,
         ),
       ],
     };
@@ -132,8 +132,8 @@ export async function negotiationNode(state: IGraphState): Promise<Partial<IGrap
       messages: [
         new AIMessage(
           `Foi um prazer ajudar! 😊\n\n` +
-          `Nosso consultor vai entrar em contato em breve.\n\n` +
-          `Até mais e boa sorte com o carro novo! 🚗✨`
+            `Nosso consultor vai entrar em contato em breve.\n\n` +
+            `Até mais e boa sorte com o carro novo! 🚗✨`,
         ),
       ],
       metadata: {
@@ -150,8 +150,8 @@ export async function negotiationNode(state: IGraphState): Promise<Partial<IGrap
       messages: [
         new AIMessage(
           `Nosso consultor costuma responder em até 30 minutos durante o horário comercial. ⏰\n\n` +
-          `Se preferir, pode ligar diretamente para a loja!\n\n` +
-          `_Posso ajudar com mais alguma coisa enquanto isso?_`
+            `Se preferir, pode ligar diretamente para a loja!\n\n` +
+            `_Posso ajudar com mais alguma coisa enquanto isso?_`,
         ),
       ],
       metadata: {
@@ -166,11 +166,11 @@ export async function negotiationNode(state: IGraphState): Promise<Partial<IGrap
     messages: [
       new AIMessage(
         `Seu contato já foi encaminhado para nossa equipe! 👍\n\n` +
-        `Enquanto aguarda, posso:\n` +
-        `• Mostrar mais opções de carros\n` +
-        `• Simular financiamento\n` +
-        `• Tirar dúvidas sobre os veículos\n\n` +
-        `_É só me dizer!_`
+          `Enquanto aguarda, posso:\n` +
+          `• Mostrar mais opções de carros\n` +
+          `• Simular financiamento\n` +
+          `• Tirar dúvidas sobre os veículos\n\n` +
+          `_É só me dizer!_`,
       ),
     ],
     metadata: {

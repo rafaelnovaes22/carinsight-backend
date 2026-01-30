@@ -1,4 +1,3 @@
-import { AIMessage } from '@langchain/core/messages';
 import { IGraphState, VehicleRecommendation } from '../types/graph-state.types';
 import { Logger } from '@nestjs/common';
 

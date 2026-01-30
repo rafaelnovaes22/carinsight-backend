@@ -20,7 +20,9 @@ function formatPrice(price: number | string | null): string {
 /**
  * Format recommendations into a nice message
  */
-function formatRecommendations(recommendations: VehicleRecommendation[]): string {
+function formatRecommendations(
+  recommendations: VehicleRecommendation[],
+): string {
   if (recommendations.length === 0) {
     return (
       `Poxa, não encontrei veículos disponíveis com esses critérios no momento. 😕\n\n` +
@@ -37,7 +39,9 @@ function formatRecommendations(recommendations: VehicleRecommendation[]): string
     if (!vehicle) return;
 
     const num = index + 1;
-    const km = vehicle.mileage ? `${Math.round(vehicle.mileage / 1000)}mil km` : '';
+    const km = vehicle.mileage
+      ? `${Math.round(vehicle.mileage / 1000)}mil km`
+      : '';
     const price = formatPrice(vehicle.price);
 
     message += `*${num}. ${vehicle.make} ${vehicle.model}* ${vehicle.yearModel}\n`;
@@ -99,7 +103,7 @@ function formatVehicleDetails(rec: VehicleRecommendation): string {
 /**
  * Recommendation Node - Presents vehicles and handles selection
  */
-export async function recommendationNode(state: IGraphState): Promise<Partial<IGraphState>> {
+export function recommendationNode(state: IGraphState): Partial<IGraphState> {
   const lastMessage = state.messages[state.messages.length - 1];
 
   if (!lastMessage || typeof lastMessage.content !== 'string') {
@@ -152,9 +156,9 @@ export async function recommendationNode(state: IGraphState): Promise<Partial<IG
       messages: [
         new AIMessage(
           `Ótimo! 🎉\n\n` +
-          `Vou pedir pro nosso consultor agendar sua visita.\n\n` +
-          `Ele vai entrar em contato pelo WhatsApp pra confirmar o melhor horário.\n\n` +
-          `_Obrigado por escolher o CarInsight!_ 🚗`
+            `Vou pedir pro nosso consultor agendar sua visita.\n\n` +
+            `Ele vai entrar em contato pelo WhatsApp pra confirmar o melhor horário.\n\n` +
+            `_Obrigado por escolher o CarInsight!_ 🚗`,
         ),
       ],
     };
@@ -173,8 +177,8 @@ export async function recommendationNode(state: IGraphState): Promise<Partial<IG
       messages: [
         new AIMessage(
           `Claro! Vou te transferir para um consultor. 👨‍💼\n\n` +
-          `Ele vai entrar em contato em breve.\n\n` +
-          `_Já passei suas informações pra ele!_`
+            `Ele vai entrar em contato em breve.\n\n` +
+            `_Já passei suas informações pra ele!_`,
         ),
       ],
     };
@@ -205,7 +209,9 @@ export async function recommendationNode(state: IGraphState): Promise<Partial<IG
   }
 
   // Handle interest / purchase intent
-  if (/gostei|interessei|quero esse|quero o|vou levar|fechar|comprar/i.test(lower)) {
+  if (
+    /gostei|interessei|quero esse|quero o|vou levar|fechar|comprar/i.test(lower)
+  ) {
     logger.log('Purchase interest detected');
     return {
       next: 'negotiation',
@@ -228,14 +234,15 @@ export async function recommendationNode(state: IGraphState): Promise<Partial<IG
         ...state.metadata,
         lastMessageAt: Date.now(),
       },
-      messages: [
-        new AIMessage(`Vou buscar mais opções pra você! 🔍`),
-      ],
+      messages: [new AIMessage(`Vou buscar mais opções pra você! 🔍`)],
     };
   }
 
   // First time showing recommendations or fallback
-  if (state.recommendations.length > 0 && !state.profile._showedRecommendation) {
+  if (
+    state.recommendations.length > 0 &&
+    !state.profile._showedRecommendation
+  ) {
     return {
       profile: {
         ...state.profile,
@@ -254,10 +261,10 @@ export async function recommendationNode(state: IGraphState): Promise<Partial<IG
     messages: [
       new AIMessage(
         `Posso te ajudar com algo mais? 🤔\n\n` +
-        `• Digite um número (1, 2 ou 3) pra ver detalhes\n` +
-        `• "Mais opções" pra ver outros carros\n` +
-        `• "Financiamento" pra simular parcelas\n` +
-        `• "Vendedor" pra falar com alguém`
+          `• Digite um número (1, 2 ou 3) pra ver detalhes\n` +
+          `• "Mais opções" pra ver outros carros\n` +
+          `• "Financiamento" pra simular parcelas\n` +
+          `• "Vendedor" pra falar com alguém`,
       ),
     ],
     metadata: {

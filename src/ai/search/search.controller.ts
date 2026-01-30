@@ -19,7 +19,10 @@ import { EmbeddingService } from '../embeddings/embedding.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { SearchThrottle, AiThrottle } from '../../common/decorators/throttle.decorator';
+import {
+  SearchThrottle,
+  AiThrottle,
+} from '../../common/decorators/throttle.decorator';
 
 @ApiTags('search')
 @Controller('search')
@@ -33,13 +36,22 @@ export class SearchController {
   @Get()
   @ApiOperation({ summary: 'Busca semântica de veículos' })
   @ApiQuery({ name: 'q', required: true, description: 'Termo de busca' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Limite de resultados' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Limite de resultados',
+  })
   @ApiQuery({ name: 'priceMin', required: false, type: Number })
   @ApiQuery({ name: 'priceMax', required: false, type: Number })
   @ApiQuery({ name: 'yearMin', required: false, type: Number })
   @ApiQuery({ name: 'yearMax', required: false, type: Number })
   @ApiQuery({ name: 'make', required: false, description: 'Marca do veículo' })
-  @ApiQuery({ name: 'bodyType', required: false, description: 'Tipo de carroceria' })
+  @ApiQuery({
+    name: 'bodyType',
+    required: false,
+    description: 'Tipo de carroceria',
+  })
   @ApiQuery({ name: 'condition', required: false, enum: ['NEW', 'USED'] })
   @ApiResponse({ status: 200, description: 'Lista de veículos relevantes' })
   async search(
@@ -95,7 +107,9 @@ export class SearchController {
   @Roles('ADMIN')
   @ApiBearerAuth('JWT-auth')
   @AiThrottle() // Stricter limit for AI-intensive operations
-  @ApiOperation({ summary: 'Sincronizar embeddings de todos os veículos (Admin)' })
+  @ApiOperation({
+    summary: 'Sincronizar embeddings de todos os veículos (Admin)',
+  })
   @ApiResponse({ status: 200, description: 'Resultado da sincronização' })
   async syncAllEmbeddings() {
     return this.embeddingService.syncAllVehicleEmbeddings();

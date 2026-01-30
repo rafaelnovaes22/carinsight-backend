@@ -57,7 +57,9 @@ export class VectorSearchService {
     const queryEmbedding = await this.embeddingService.generateEmbedding(query);
 
     if (!queryEmbedding) {
-      this.logger.warn('Could not generate query embedding, falling back to text search');
+      this.logger.warn(
+        'Could not generate query embedding, falling back to text search',
+      );
       return this.fallbackTextSearch(query, limit, filters);
     }
 
@@ -82,7 +84,9 @@ export class VectorSearchService {
     });
 
     if (vehicles.length === 0) {
-      this.logger.warn('No vehicles with embeddings found, falling back to text search');
+      this.logger.warn(
+        'No vehicles with embeddings found, falling back to text search',
+      );
       return this.fallbackTextSearch(query, limit, filters);
     }
 
@@ -332,7 +336,9 @@ export class VectorSearchService {
   async getSearchStats() {
     const [total, withEmbedding, available] = await Promise.all([
       this.prisma.vehicle.count(),
-      this.prisma.vehicle.count({ where: { embedding: { not: Prisma.DbNull } } }),
+      this.prisma.vehicle.count({
+        where: { embedding: { not: Prisma.DbNull } },
+      }),
       this.prisma.vehicle.count({ where: { status: 'AVAILABLE' } }),
     ]);
 
@@ -340,7 +346,8 @@ export class VectorSearchService {
       totalVehicles: total,
       vehiclesWithEmbedding: withEmbedding,
       availableVehicles: available,
-      embeddingCoverage: total > 0 ? ((withEmbedding / total) * 100).toFixed(1) + '%' : '0%',
+      embeddingCoverage:
+        total > 0 ? ((withEmbedding / total) * 100).toFixed(1) + '%' : '0%',
     };
   }
 }

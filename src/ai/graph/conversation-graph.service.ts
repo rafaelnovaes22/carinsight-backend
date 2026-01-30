@@ -2,7 +2,12 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { HumanMessage } from '@langchain/core/messages';
 import { Runnable } from '@langchain/core/runnables';
 import { createConversationGraph, GraphStateType } from './workflow';
-import { createInitialState, VehicleRecommendation, CustomerProfile, IGraphState } from './types/graph-state.types';
+import {
+  createInitialState,
+  VehicleRecommendation,
+  CustomerProfile,
+  IGraphState,
+} from './types/graph-state.types';
 import { VectorSearchService } from '../vector/vector-search.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -58,12 +63,15 @@ export class ConversationGraphService implements OnModuleInit {
    */
   private createSearchNode() {
     return async (state: GraphStateType): Promise<Partial<GraphStateType>> => {
-      this.logger.log('Executing search with profile:', JSON.stringify(state.profile));
+      this.logger.log(
+        'Executing search with profile:',
+        JSON.stringify(state.profile),
+      );
 
       try {
         // Build search query from profile
         const query = this.buildSearchQuery(state.profile);
-        
+
         // Build filters from profile
         const filters: any = {};
         if (state.profile.budget) {
@@ -80,7 +88,11 @@ export class ConversationGraphService implements OnModuleInit {
         }
 
         // Execute semantic search
-        const searchResults = await this.vectorSearch.searchSemantic(query, 5, filters);
+        const searchResults = await this.vectorSearch.searchSemantic(
+          query,
+          5,
+          filters,
+        );
 
         if (searchResults.length === 0) {
           this.logger.log('No vehicles found matching criteria');
@@ -96,23 +108,25 @@ export class ConversationGraphService implements OnModuleInit {
         }
 
         // Convert to recommendations
-        const recommendations: VehicleRecommendation[] = searchResults.map((result) => ({
-          vehicleId: result.id,
-          matchScore: Math.round(result.score * 100),
-          reasoning: this.generateReasoning(result, state.profile),
-          highlights: this.generateHighlights(result, state.profile),
-          concerns: [],
-          vehicle: {
-            id: result.id,
-            make: result.make,
-            model: result.model,
-            yearModel: result.yearModel,
-            price: result.price,
-            mileage: result.mileage,
-            bodyType: result.bodyType,
-            features: result.aiTags,
-          },
-        }));
+        const recommendations: VehicleRecommendation[] = searchResults.map(
+          (result) => ({
+            vehicleId: result.id,
+            matchScore: Math.round(result.score * 100),
+            reasoning: this.generateReasoning(result, state.profile),
+            highlights: this.generateHighlights(result, state.profile),
+            concerns: [],
+            vehicle: {
+              id: result.id,
+              make: result.make,
+              model: result.model,
+              yearModel: result.yearModel,
+              price: result.price,
+              mileage: result.mileage,
+              bodyType: result.bodyType,
+              features: result.aiTags,
+            },
+          }),
+        );
 
         this.logger.log(`Found ${recommendations.length} vehicles`);
 
@@ -207,10 +221,16 @@ export class ConversationGraphService implements OnModuleInit {
   /**
    * Generate reasoning for why a vehicle matches
    */
-  private generateReasoning(vehicle: any, profile: Partial<CustomerProfile>): string {
+  private generateReasoning(
+    vehicle: any,
+    profile: Partial<CustomerProfile>,
+  ): string {
     const reasons: string[] = [];
 
-    if (profile.bodyType && vehicle.bodyType?.toLowerCase() === profile.bodyType.toLowerCase()) {
+    if (
+      profile.bodyType &&
+      vehicle.bodyType?.toLowerCase() === profile.bodyType.toLowerCase()
+    ) {
       reasons.push(`É um ${profile.bodyType} como você pediu`);
     }
 
@@ -232,7 +252,10 @@ export class ConversationGraphService implements OnModuleInit {
   /**
    * Generate highlights for a vehicle
    */
-  private generateHighlights(vehicle: any, profile: Partial<CustomerProfile>): string[] {
+  private generateHighlights(
+    vehicle: any,
+    profile: Partial<CustomerProfile>,
+  ): string[] {
     const highlights: string[] = [];
 
     if (vehicle.mileage < 30000) {
@@ -249,7 +272,10 @@ export class ConversationGraphService implements OnModuleInit {
       highlights.push('Câmbio automático');
     }
 
-    if (profile.usage === 'app' && vehicle.bodyType?.toLowerCase() === 'sedan') {
+    if (
+      profile.usage === 'app' &&
+      vehicle.bodyType?.toLowerCase() === 'sedan'
+    ) {
       highlights.push('Ideal para aplicativo');
     }
 
@@ -262,8 +288,8 @@ export class ConversationGraphService implements OnModuleInit {
   async processMessage(
     threadId: string,
     message: string,
-    context?: { 
-      userId?: string; 
+    context?: {
+      userId?: string;
       phoneNumber?: string;
       interestedVehicle?: {
         id: string;
@@ -295,55 +321,61 @@ export class ConversationGraphService implements OnModuleInit {
         if (context?.phoneNumber) {
           session.state.phoneNumber = context.phoneNumber;
         }
-        
+
         // If there's an interested vehicle, set it as the initial recommendation
         // This creates the lead context - the customer started from this specific vehicle
         if (context?.interestedVehicle) {
           const vehicle = context.interestedVehicle;
-          session.state.recommendations = [{
-            vehicleId: vehicle.id,
-            matchScore: 100, // Perfect match since customer chose it
-            reasoning: 'Veículo que você selecionou',
-            highlights: ['Você demonstrou interesse neste veículo'],
-            concerns: [],
-            vehicle: {
-              id: vehicle.id,
-              make: vehicle.make,
-              model: vehicle.model,
-              yearModel: vehicle.yearModel,
-              price: vehicle.price,
-              mileage: vehicle.mileage || 0,
-              bodyType: vehicle.bodyType || '',
+          session.state.recommendations = [
+            {
+              vehicleId: vehicle.id,
+              matchScore: 100, // Perfect match since customer chose it
+              reasoning: 'Veículo que você selecionou',
+              highlights: ['Você demonstrou interesse neste veículo'],
+              concerns: [],
+              vehicle: {
+                id: vehicle.id,
+                make: vehicle.make,
+                model: vehicle.model,
+                yearModel: vehicle.yearModel,
+                price: vehicle.price,
+                mileage: vehicle.mileage || 0,
+                bodyType: vehicle.bodyType || '',
+              },
             },
-          }];
-          
+          ];
+
           // Store in profile for lead tracking
           session.state.profile = {
             ...session.state.profile,
-            _lastShownVehicles: [{
-              vehicleId: vehicle.id,
-              brand: vehicle.make,
-              model: vehicle.model,
-              year: vehicle.yearModel,
-              price: vehicle.price,
-            }],
+            _lastShownVehicles: [
+              {
+                vehicleId: vehicle.id,
+                brand: vehicle.make,
+                model: vehicle.model,
+                year: vehicle.yearModel,
+                price: vehicle.price,
+              },
+            ],
             // Extract preferences from the vehicle they're interested in
             bodyType: vehicle.bodyType?.toLowerCase() as any,
             budget: Math.round(vehicle.price * 1.2), // Allow 20% flexibility
           };
-          
+
           // Skip to recommendation node since we already have a vehicle
           session.state.next = 'recommendation';
-          
-          this.logger.log(`Lead context set for vehicle ${vehicle.id}: ${vehicle.make} ${vehicle.model}`);
+
+          this.logger.log(
+            `Lead context set for vehicle ${vehicle.id}: ${vehicle.make} ${vehicle.model}`,
+          );
         }
-        
+
         this.sessions.set(threadId, session);
       }
 
       // Invoke the graph with the new message
       const config = { configurable: { thread_id: threadId } };
-      
+
       // Prepare input - spread state first, then add new message
       const input = {
         ...session.state,
@@ -360,12 +392,23 @@ export class ConversationGraphService implements OnModuleInit {
 
       // Extract response from last AI message
       const lastMessage = finalState.messages[finalState.messages.length - 1];
-      const responseContent = lastMessage?.content?.toString() || 'Desculpe, não entendi. Pode reformular?';
+      let responseContent = 'Desculpe, não entendi. Pode reformular?';
+      if (lastMessage?.content) {
+        if (typeof lastMessage.content === 'string') {
+          responseContent = lastMessage.content;
+        } else if (Array.isArray(lastMessage.content)) {
+          responseContent = lastMessage.content
+            .map((c) => (typeof c === 'string' ? c : JSON.stringify(c)))
+            .join('');
+        }
+      }
 
       // Determine suggested actions
       const suggestedActions = this.determineSuggestedActions(finalState);
 
-      this.logger.log(`Message processed in ${Date.now() - startTime}ms, next: ${finalState.next}`);
+      this.logger.log(
+        `Message processed in ${Date.now() - startTime}ms, next: ${finalState.next}`,
+      );
 
       return {
         response: responseContent,
@@ -376,10 +419,14 @@ export class ConversationGraphService implements OnModuleInit {
         suggestedActions,
       };
     } catch (error: any) {
-      this.logger.error(`Error processing message: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error processing message: ${error.message}`,
+        error.stack,
+      );
 
       return {
-        response: 'Desculpe, tive um problema ao processar sua mensagem. Pode tentar novamente? 🤔',
+        response:
+          'Desculpe, tive um problema ao processar sua mensagem. Pode tentar novamente? 🤔',
         sessionId: threadId,
         currentNode: 'error',
         suggestedActions: ['RETRY', 'HANDOFF_HUMAN'],

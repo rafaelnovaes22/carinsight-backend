@@ -43,7 +43,7 @@ function formatCurrency(value: number): string {
 /**
  * Financing Node - Handles financing simulation and questions
  */
-export async function financingNode(state: IGraphState): Promise<Partial<IGraphState>> {
+export function financingNode(state: IGraphState): Partial<IGraphState> {
   const lastMessage = state.messages[state.messages.length - 1];
 
   if (!lastMessage || typeof lastMessage.content !== 'string') {
@@ -56,14 +56,18 @@ export async function financingNode(state: IGraphState): Promise<Partial<IGraphS
 
   // Get vehicle price from last shown vehicles or profile
   let vehiclePrice = 0;
-  if (state.profile._lastShownVehicles && state.profile._lastShownVehicles.length > 0) {
+  if (
+    state.profile._lastShownVehicles &&
+    state.profile._lastShownVehicles.length > 0
+  ) {
     vehiclePrice = state.profile._lastShownVehicles[0].price;
   } else if (state.profile.budget) {
     vehiclePrice = state.profile.budget;
   }
 
   // Extract down payment from message
-  const downPaymentMatch = lower.match(/entrada.*?(\d{1,3})[\s.]?(?:mil|k)?/i) ||
+  const downPaymentMatch =
+    lower.match(/entrada.*?(\d{1,3})[\s.]?(?:mil|k)?/i) ||
     lower.match(/(\d{1,3})[\s.]?(?:mil|k)?\s*(?:de\s*)?entrada/i);
 
   // Extract months from message
@@ -72,7 +76,11 @@ export async function financingNode(state: IGraphState): Promise<Partial<IGraphS
   // If we have enough info, calculate
   if (vehiclePrice > 0) {
     const downPayment = downPaymentMatch
-      ? parseInt(downPaymentMatch[1]) * (downPaymentMatch[0].includes('mil') || parseInt(downPaymentMatch[1]) < 100 ? 1000 : 1)
+      ? parseInt(downPaymentMatch[1]) *
+        (downPaymentMatch[0].includes('mil') ||
+        parseInt(downPaymentMatch[1]) < 100
+          ? 1000
+          : 1)
       : vehiclePrice * 0.2; // Default 20% down
 
     const months = monthsMatch ? parseInt(monthsMatch[1]) : 48; // Default 48 months
@@ -124,10 +132,10 @@ export async function financingNode(state: IGraphState): Promise<Partial<IGraphS
       messages: [
         new AIMessage(
           `Pra simular o financiamento, preciso saber qual veículo te interessa! 🚗\n\n` +
-          `Me conta:\n` +
-          `• Qual tipo de carro você procura?\n` +
-          `• Qual seu orçamento?\n\n` +
-          `Assim posso te mostrar as opções e simular as parcelas!`
+            `Me conta:\n` +
+            `• Qual tipo de carro você procura?\n` +
+            `• Qual seu orçamento?\n\n` +
+            `Assim posso te mostrar as opções e simular as parcelas!`,
         ),
       ],
       metadata: {
@@ -164,10 +172,10 @@ export async function financingNode(state: IGraphState): Promise<Partial<IGraphS
     messages: [
       new AIMessage(
         `Vamos simular o financiamento! 💰\n\n` +
-        `Me conta:\n` +
-        `• Quanto você tem de entrada?\n` +
-        `• Em quantas vezes quer parcelar? (36, 48 ou 60x)\n\n` +
-        `_Exemplo: "20 mil de entrada em 48x"_`
+          `Me conta:\n` +
+          `• Quanto você tem de entrada?\n` +
+          `• Em quantas vezes quer parcelar? (36, 48 ou 60x)\n\n` +
+          `_Exemplo: "20 mil de entrada em 48x"_`,
       ),
     ],
     metadata: {

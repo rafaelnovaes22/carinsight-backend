@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -131,7 +131,10 @@ export class VehiclesService {
     // Regenerate AI tags if relevant fields changed
     if (data.mileage || data.yearFab || technicalSpecs) {
       const mergedData = { ...vehicle, ...data };
-      const mergedSpecs = { ...(vehicle.technicalSpecs as object), ...technicalSpecs };
+      const mergedSpecs = {
+        ...(vehicle.technicalSpecs as object),
+        ...technicalSpecs,
+      };
       updateData.aiTags = this.generateAiTags(mergedData, mergedSpecs);
     }
 
@@ -160,7 +163,11 @@ export class VehiclesService {
   }
 
   private generateAiTags(
-    data: { mileage?: number; yearFab?: number; price?: number | Prisma.Decimal },
+    data: {
+      mileage?: number;
+      yearFab?: number;
+      price?: number | Prisma.Decimal;
+    },
     specs: Record<string, unknown>,
   ): string[] {
     const tags: string[] = [];

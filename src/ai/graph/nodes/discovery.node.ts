@@ -7,7 +7,10 @@ const logger = new Logger('DiscoveryNode');
 /**
  * Extract preferences from user message using LLM-like pattern matching
  */
-function extractPreferences(message: string, currentProfile: Partial<CustomerProfile>): Partial<CustomerProfile> {
+function extractPreferences(
+  message: string,
+  _currentProfile: Partial<CustomerProfile>,
+): Partial<CustomerProfile> {
   const profile: Partial<CustomerProfile> = {};
   const lower = message.toLowerCase();
 
@@ -70,7 +73,9 @@ function extractPreferences(message: string, currentProfile: Partial<CustomerPro
   }
 
   // Mileage
-  const kmMatch = lower.match(/(?:até|máximo|menos de)\s*(\d{2,3})[\s.]?(?:mil)?\s*km/i);
+  const kmMatch = lower.match(
+    /(?:até|máximo|menos de)\s*(\d{2,3})[\s.]?(?:mil)?\s*km/i,
+  );
   if (kmMatch) {
     profile.maxKm = parseInt(kmMatch[1]) * 1000;
   }
@@ -90,19 +95,40 @@ function extractPreferences(message: string, currentProfile: Partial<CustomerPro
 
   // Brand
   const brands = [
-    'toyota', 'honda', 'volkswagen', 'vw', 'fiat', 'chevrolet', 'gm',
-    'ford', 'hyundai', 'jeep', 'nissan', 'renault', 'peugeot', 'citroen',
-    'mitsubishi', 'kia', 'bmw', 'mercedes', 'audi'
+    'toyota',
+    'honda',
+    'volkswagen',
+    'vw',
+    'fiat',
+    'chevrolet',
+    'gm',
+    'ford',
+    'hyundai',
+    'jeep',
+    'nissan',
+    'renault',
+    'peugeot',
+    'citroen',
+    'mitsubishi',
+    'kia',
+    'bmw',
+    'mercedes',
+    'audi',
   ];
   for (const brand of brands) {
     if (lower.includes(brand)) {
-      profile.brand = brand === 'vw' ? 'volkswagen' : brand === 'gm' ? 'chevrolet' : brand;
+      profile.brand =
+        brand === 'vw' ? 'volkswagen' : brand === 'gm' ? 'chevrolet' : brand;
       break;
     }
   }
 
   // Trade-in detection
-  if (/tenho.*(?:pra|para)?\s*(?:dar na)?\s*troca|meu carro.*troca|trocar meu/i.test(lower)) {
+  if (
+    /tenho.*(?:pra|para)?\s*(?:dar na)?\s*troca|meu carro.*troca|trocar meu/i.test(
+      lower,
+    )
+  ) {
     profile.hasTradeIn = true;
   }
 
@@ -113,7 +139,8 @@ function extractPreferences(message: string, currentProfile: Partial<CustomerPro
 
   // Priorities
   const priorities: string[] = [];
-  if (/econômic|econom|consumo baixo|gasta pouco/i.test(lower)) priorities.push('economico');
+  if (/econômic|econom|consumo baixo|gasta pouco/i.test(lower))
+    priorities.push('economico');
   if (/confort|espaço|espaçoso/i.test(lower)) priorities.push('conforto');
   if (/segur|airbag|freio abs/i.test(lower)) priorities.push('seguranca');
   if (/potent|forte|motor bom/i.test(lower)) priorities.push('potencia');
@@ -140,10 +167,12 @@ function generateClarifyingQuestion(profile: Partial<CustomerProfile>): string {
   const greeting = name ? `${name}, ` : '';
 
   if (!profile.budget && !profile.bodyType && !profile.usage) {
-    return `${greeting}pra te ajudar melhor, me conta:\n\n` +
+    return (
+      `${greeting}pra te ajudar melhor, me conta:\n\n` +
       `• Qual tipo de carro você procura? (SUV, sedan, hatch...)\n` +
       `• Pra que vai usar? (família, trabalho, app...)\n` +
-      `• Tem um orçamento em mente?`;
+      `• Tem um orçamento em mente?`
+    );
   }
 
   if (!profile.budget) {
@@ -151,11 +180,13 @@ function generateClarifyingQuestion(profile: Partial<CustomerProfile>): string {
   }
 
   if (!profile.bodyType && !profile.usage) {
-    return `${greeting}e qual tipo de carro você prefere?\n\n` +
+    return (
+      `${greeting}e qual tipo de carro você prefere?\n\n` +
       `• SUV (mais espaço e altura)\n` +
       `• Sedan (conforto e porta-malas)\n` +
       `• Hatch (compacto e econômico)\n` +
-      `• Pickup (trabalho e aventura)`;
+      `• Pickup (trabalho e aventura)`
+    );
   }
 
   // We have enough, but let's confirm
@@ -165,7 +196,7 @@ function generateClarifyingQuestion(profile: Partial<CustomerProfile>): string {
 /**
  * Discovery Node - Extracts preferences and guides conversation
  */
-export async function discoveryNode(state: IGraphState): Promise<Partial<IGraphState>> {
+export function discoveryNode(state: IGraphState): Partial<IGraphState> {
   const lastMessage = state.messages[state.messages.length - 1];
 
   if (!lastMessage || typeof lastMessage.content !== 'string') {
@@ -189,8 +220,8 @@ export async function discoveryNode(state: IGraphState): Promise<Partial<IGraphS
       messages: [
         new AIMessage(
           `Claro! Vou te transferir para um de nossos consultores. 👨‍💼\n\n` +
-          `Ele vai entrar em contato em breve pelo WhatsApp.\n\n` +
-          `_Obrigado por usar o CarInsight!_ 🚗`
+            `Ele vai entrar em contato em breve pelo WhatsApp.\n\n` +
+            `_Obrigado por usar o CarInsight!_ 🚗`,
         ),
       ],
     };
@@ -203,7 +234,7 @@ export async function discoveryNode(state: IGraphState): Promise<Partial<IGraphS
       messages: [
         new AIMessage(
           `Até mais! Foi um prazer ajudar. 👋\n\n` +
-          `Quando precisar de um carro, é só voltar aqui! 🚗`
+            `Quando precisar de um carro, é só voltar aqui! 🚗`,
         ),
       ],
     };

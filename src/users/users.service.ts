@@ -195,7 +195,10 @@ export class UsersService {
       throw new BadRequestException('Senha atual incorreta');
     }
 
-    const newPasswordHash = await bcrypt.hash(dto.newPassword, this.SALT_ROUNDS);
+    const newPasswordHash = await bcrypt.hash(
+      dto.newPassword,
+      this.SALT_ROUNDS,
+    );
 
     await this.prisma.user.update({
       where: { id },

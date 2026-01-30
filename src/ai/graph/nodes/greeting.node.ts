@@ -19,7 +19,23 @@ function extractName(message: string): string | null {
     if (match && match[1]) {
       const name = match[1].trim();
       // Filter common non-name words
-      const nonNames = ['oi', 'ola', 'olá', 'bom', 'boa', 'dia', 'tarde', 'noite', 'quero', 'preciso', 'um', 'uma', 'carro', 'suv', 'sedan'];
+      const nonNames = [
+        'oi',
+        'ola',
+        'olá',
+        'bom',
+        'boa',
+        'dia',
+        'tarde',
+        'noite',
+        'quero',
+        'preciso',
+        'um',
+        'uma',
+        'carro',
+        'suv',
+        'sedan',
+      ];
       if (!nonNames.includes(name.toLowerCase()) && name.length > 1) {
         return name;
       }
@@ -62,7 +78,19 @@ function parseVehicleIntent(message: string): Partial<CustomerProfile> {
   }
 
   // Brand detection
-  const brands = ['toyota', 'honda', 'volkswagen', 'vw', 'fiat', 'chevrolet', 'ford', 'hyundai', 'jeep', 'nissan', 'renault'];
+  const brands = [
+    'toyota',
+    'honda',
+    'volkswagen',
+    'vw',
+    'fiat',
+    'chevrolet',
+    'ford',
+    'hyundai',
+    'jeep',
+    'nissan',
+    'renault',
+  ];
   for (const brand of brands) {
     if (lower.includes(brand)) {
       profile.brand = brand === 'vw' ? 'volkswagen' : brand;
@@ -76,14 +104,16 @@ function parseVehicleIntent(message: string): Partial<CustomerProfile> {
 /**
  * Check if message is a greeting
  */
-function isGreeting(message: string): boolean {
-  return /^(oi|olá|ola|bom dia|boa tarde|boa noite|hey|hello|hi|e aí|eai)/i.test(message.trim());
+function _isGreeting(message: string): boolean {
+  return /^(oi|olá|ola|bom dia|boa tarde|boa noite|hey|hello|hi|e aí|eai)/i.test(
+    message.trim(),
+  );
 }
 
 /**
  * Greeting Node - Handles initial interaction and name extraction
  */
-export async function greetingNode(state: IGraphState): Promise<Partial<IGraphState>> {
+export function greetingNode(state: IGraphState): Partial<IGraphState> {
   const lastMessage = state.messages[state.messages.length - 1];
 
   if (!lastMessage || typeof lastMessage.content !== 'string') {
@@ -95,14 +125,17 @@ export async function greetingNode(state: IGraphState): Promise<Partial<IGraphSt
 
   // SCENARIO 0: Customer started from a specific vehicle (lead context)
   // Check if we have recommendations already (set by ConversationGraphService when vehicleId provided)
-  if (state.recommendations.length > 0 && state.recommendations[0].reasoning === 'Veículo que você selecionou') {
+  if (
+    state.recommendations.length > 0 &&
+    state.recommendations[0].reasoning === 'Veículo que você selecionou'
+  ) {
     const vehicle = state.recommendations[0].vehicle;
     if (vehicle) {
       const vehicleName = `${vehicle.make} ${vehicle.model} ${vehicle.yearModel}`;
       const price = vehicle.price?.toLocaleString('pt-BR') || 'Consulte';
-      
+
       logger.log(`Customer started from vehicle: ${vehicleName}`);
-      
+
       return {
         next: 'recommendation',
         profile: {
@@ -112,17 +145,17 @@ export async function greetingNode(state: IGraphState): Promise<Partial<IGraphSt
         messages: [
           new AIMessage(
             `👋 Olá! Sou a assistente virtual do *CarInsight*.\n\n` +
-            `🤖 *Importante:* Sou uma inteligência artificial e posso cometer erros.\n\n` +
-            `Vi que você está interessado no *${vehicleName}*! Excelente escolha! 🚗\n\n` +
-            `📋 *Detalhes:*\n` +
-            `💰 Preço: R$ ${price}\n` +
-            `🛣️ ${vehicle.mileage?.toLocaleString('pt-BR') || 'N/A'} km\n\n` +
-            `Como posso te ajudar?\n` +
-            `• Quer saber mais sobre este veículo?\n` +
-            `• Simular financiamento?\n` +
-            `• Agendar uma visita?\n` +
-            `• Falar com um vendedor?\n\n` +
-            `_Qual é o seu nome, por favor?_`
+              `🤖 *Importante:* Sou uma inteligência artificial e posso cometer erros.\n\n` +
+              `Vi que você está interessado no *${vehicleName}*! Excelente escolha! 🚗\n\n` +
+              `📋 *Detalhes:*\n` +
+              `💰 Preço: R$ ${price}\n` +
+              `🛣️ ${vehicle.mileage?.toLocaleString('pt-BR') || 'N/A'} km\n\n` +
+              `Como posso te ajudar?\n` +
+              `• Quer saber mais sobre este veículo?\n` +
+              `• Simular financiamento?\n` +
+              `• Agendar uma visita?\n` +
+              `• Falar com um vendedor?\n\n` +
+              `_Qual é o seu nome, por favor?_`,
           ),
         ],
       };
@@ -177,12 +210,12 @@ export async function greetingNode(state: IGraphState): Promise<Partial<IGraphSt
       messages: [
         new AIMessage(
           `👋 Olá, ${firstName}! Sou a assistente virtual do *CarInsight*.\n\n` +
-          `🤖 *Importante:* Sou uma inteligência artificial e posso cometer erros.\n\n` +
-          `Me conta, o que você está procurando? 🚗\n\n` +
-          `Pode ser:\n` +
-          `• Um tipo de carro (SUV, sedan, hatch...)\n` +
-          `• Para que vai usar (família, trabalho, app...)\n` +
-          `• Ou um modelo específico`
+            `🤖 *Importante:* Sou uma inteligência artificial e posso cometer erros.\n\n` +
+            `Me conta, o que você está procurando? 🚗\n\n` +
+            `Pode ser:\n` +
+            `• Um tipo de carro (SUV, sedan, hatch...)\n` +
+            `• Para que vai usar (família, trabalho, app...)\n` +
+            `• Ou um modelo específico`,
         ),
       ],
     };
@@ -191,7 +224,8 @@ export async function greetingNode(state: IGraphState): Promise<Partial<IGraphSt
   // SCENARIO C: Vehicle Intent but no name -> Ask for name
   if (hasVehicleIntent) {
     let carDescription = '';
-    if (vehicleIntent.bodyType) carDescription += vehicleIntent.bodyType.toUpperCase();
+    if (vehicleIntent.bodyType)
+      carDescription += vehicleIntent.bodyType.toUpperCase();
     if (vehicleIntent.brand) carDescription += ` ${vehicleIntent.brand}`;
 
     return {
@@ -203,9 +237,9 @@ export async function greetingNode(state: IGraphState): Promise<Partial<IGraphSt
       messages: [
         new AIMessage(
           `👋 Olá! Sou a assistente virtual do *CarInsight*.\n\n` +
-          `🤖 *Importante:* Sou uma inteligência artificial e posso cometer erros.\n\n` +
-          `Vi que você busca um *${carDescription.trim() || 'veículo'}*. Ótima escolha! 🚗\n\n` +
-          `Qual é o seu nome?`
+            `🤖 *Importante:* Sou uma inteligência artificial e posso cometer erros.\n\n` +
+            `Vi que você busca um *${carDescription.trim() || 'veículo'}*. Ótima escolha! 🚗\n\n` +
+            `Qual é o seu nome?`,
         ),
       ],
     };
@@ -217,9 +251,9 @@ export async function greetingNode(state: IGraphState): Promise<Partial<IGraphSt
     messages: [
       new AIMessage(
         `👋 Olá! Sou a assistente virtual do *CarInsight*.\n\n` +
-        `🤖 *Importante:* Sou uma inteligência artificial e posso cometer erros.\n\n` +
-        `💡 _A qualquer momento, digite *sair* para encerrar._\n\n` +
-        `Para começar, qual é o seu nome?`
+          `🤖 *Importante:* Sou uma inteligência artificial e posso cometer erros.\n\n` +
+          `💡 _A qualquer momento, digite *sair* para encerrar._\n\n` +
+          `Para começar, qual é o seu nome?`,
       ),
     ],
   };

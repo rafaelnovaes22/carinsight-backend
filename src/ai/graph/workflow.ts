@@ -1,6 +1,12 @@
 import { StateGraph, END, START, Annotation } from '@langchain/langgraph';
 import { BaseMessage } from '@langchain/core/messages';
-import { GraphNode, CustomerProfile, VehicleRecommendation, QuizState, GraphMetadata } from './types/graph-state.types';
+import {
+  GraphNode,
+  CustomerProfile,
+  VehicleRecommendation,
+  QuizState,
+  GraphMetadata,
+} from './types/graph-state.types';
 import {
   greetingNode,
   discoveryNode,
@@ -107,13 +113,15 @@ function routeNode(state: GraphStateType): string {
     case 'handoff':
       return END;
     default:
-      logger.warn(`Unknown next state: ${nextNode}, defaulting to greeting`);
+      logger.warn(
+        `Unknown next state: ${String(nextNode)}, defaulting to greeting`,
+      );
       return 'greeting';
   }
 }
 
 // Define all possible route destinations
-const routeDestinations = [
+const _routeDestinations = [
   'greeting',
   'discovery',
   'search',
@@ -175,7 +183,7 @@ export function createConversationGraph(options?: {
 /**
  * Default search node (placeholder - real implementation injected at runtime)
  */
-async function defaultSearchNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
+function defaultSearchNode(state: GraphStateType): Partial<GraphStateType> {
   logger.warn('Using default search node - no results');
   return {
     next: 'recommendation',

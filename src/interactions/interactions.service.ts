@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateInteractionDto, InteractionType } from './dto/create-interaction.dto';
+import { CreateInteractionDto } from './dto/create-interaction.dto';
 
 @Injectable()
 export class InteractionsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Salvar um veículo como favorito
@@ -214,7 +214,10 @@ export class InteractionsService {
 
     return {
       success: result.count > 0,
-      message: result.count > 0 ? 'Removido da comparação' : 'Veículo não estava na comparação'
+      message:
+        result.count > 0
+          ? 'Removido da comparação'
+          : 'Veículo não estava na comparação',
     };
   }
 

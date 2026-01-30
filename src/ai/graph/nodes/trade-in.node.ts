@@ -71,26 +71,64 @@ function extractTradeInInfo(message: string): {
   km?: number;
 } {
   const lower = message.toLowerCase();
-  const info: { brand?: string; model?: string; year?: number; km?: number } = {};
+  const info: { brand?: string; model?: string; year?: number; km?: number } =
+    {};
 
   // Brand detection
   const brands = [
-    'toyota', 'honda', 'volkswagen', 'vw', 'fiat', 'chevrolet', 'gm',
-    'ford', 'hyundai', 'jeep', 'nissan', 'renault', 'peugeot', 'citroen',
+    'toyota',
+    'honda',
+    'volkswagen',
+    'vw',
+    'fiat',
+    'chevrolet',
+    'gm',
+    'ford',
+    'hyundai',
+    'jeep',
+    'nissan',
+    'renault',
+    'peugeot',
+    'citroen',
   ];
   for (const brand of brands) {
     if (lower.includes(brand)) {
-      info.brand = brand === 'vw' ? 'volkswagen' : brand === 'gm' ? 'chevrolet' : brand;
+      info.brand =
+        brand === 'vw' ? 'volkswagen' : brand === 'gm' ? 'chevrolet' : brand;
       break;
     }
   }
 
   // Model detection (common models)
   const models = [
-    'corolla', 'civic', 'gol', 'polo', 'onix', 'hb20', 'creta', 'compass',
-    'kicks', 'renegade', 'tracker', 'tcross', 't-cross', 'nivus', 'argo',
-    'cronos', 'mobi', 'uno', 'palio', 'siena', 'toro', 'strada', 'saveiro',
-    'hilux', 'ranger', 's10', 'amarok', 'frontier',
+    'corolla',
+    'civic',
+    'gol',
+    'polo',
+    'onix',
+    'hb20',
+    'creta',
+    'compass',
+    'kicks',
+    'renegade',
+    'tracker',
+    'tcross',
+    't-cross',
+    'nivus',
+    'argo',
+    'cronos',
+    'mobi',
+    'uno',
+    'palio',
+    'siena',
+    'toro',
+    'strada',
+    'saveiro',
+    'hilux',
+    'ranger',
+    's10',
+    'amarok',
+    'frontier',
   ];
   for (const model of models) {
     if (lower.includes(model)) {
@@ -117,7 +155,7 @@ function extractTradeInInfo(message: string): {
 /**
  * Trade-In Node - Handles trade-in evaluation
  */
-export async function tradeInNode(state: IGraphState): Promise<Partial<IGraphState>> {
+export function tradeInNode(state: IGraphState): Partial<IGraphState> {
   const lastMessage = state.messages[state.messages.length - 1];
 
   if (!lastMessage || typeof lastMessage.content !== 'string') {
@@ -176,7 +214,9 @@ export async function tradeInNode(state: IGraphState): Promise<Partial<IGraphSta
     return {
       profile: {
         ...updatedProfile,
-        tradeInEstimatedValue: Math.round((estimation.minValue + estimation.maxValue) / 2),
+        tradeInEstimatedValue: Math.round(
+          (estimation.minValue + estimation.maxValue) / 2,
+        ),
       },
       messages: [new AIMessage(response)],
       metadata: {

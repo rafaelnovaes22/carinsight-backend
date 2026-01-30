@@ -47,7 +47,11 @@ export class UsersController {
   @Roles('ADMIN')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Listar usuários (Admin only)' })
-  @ApiQuery({ name: 'role', required: false, enum: ['ADMIN', 'DEALER', 'CUSTOMER'] })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    enum: ['ADMIN', 'DEALER', 'CUSTOMER'],
+  })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })

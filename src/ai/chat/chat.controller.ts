@@ -1,5 +1,20 @@
-import { Controller, Post, Body, Param, Get, Delete, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Get,
+  Delete,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 import { ChatService, ChatResponse } from './chat.service';
 import { Public } from '../../auth/decorators/public.decorator';
 import { ChatThrottle } from '../../common/decorators/throttle.decorator';
@@ -35,7 +50,10 @@ export class ChatController {
     schema: {
       properties: {
         sessionId: { type: 'string', example: 'uuid-session-id' },
-        greeting: { type: 'string', example: 'Olá! Sou a assistente virtual do CarInsight...' },
+        greeting: {
+          type: 'string',
+          example: 'Olá! Sou a assistente virtual do CarInsight...',
+        },
       },
     },
   })

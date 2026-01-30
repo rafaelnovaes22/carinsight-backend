@@ -54,7 +54,9 @@ export class EmbeddingService {
 
       return response.data.map((item) => item.embedding);
     } catch (error) {
-      this.logger.error(`Failed to generate batch embeddings: ${error.message}`);
+      this.logger.error(
+        `Failed to generate batch embeddings: ${error.message}`,
+      );
       return texts.map(() => null);
     }
   }
@@ -74,9 +76,9 @@ export class EmbeddingService {
     aiTags: string[];
     technicalSpecs?: Record<string, unknown> | Prisma.JsonValue;
   }): string {
-    const specs = vehicle.technicalSpecs as Record<string, unknown> || {};
+    const specs = (vehicle.technicalSpecs as Record<string, unknown>) || {};
     const price = Number(vehicle.price);
-    
+
     const parts = [
       `${vehicle.make} ${vehicle.model} ${vehicle.yearModel}`,
       `Tipo: ${vehicle.bodyType}`,
@@ -85,10 +87,14 @@ export class EmbeddingService {
       `Quilometragem: ${vehicle.mileage.toLocaleString()} km`,
     ];
 
-    if (specs.engine) parts.push(`Motor: ${specs.engine}`);
-    if (specs.transmission) parts.push(`Câmbio: ${specs.transmission}`);
-    if (specs.fuel) parts.push(`Combustível: ${specs.fuel}`);
-    if (specs.power) parts.push(`Potência: ${specs.power}`);
+    if (specs.engine && typeof specs.engine === 'string')
+      parts.push(`Motor: ${specs.engine}`);
+    if (specs.transmission && typeof specs.transmission === 'string')
+      parts.push(`Câmbio: ${specs.transmission}`);
+    if (specs.fuel && typeof specs.fuel === 'string')
+      parts.push(`Combustível: ${specs.fuel}`);
+    if (specs.power && typeof specs.power === 'string')
+      parts.push(`Potência: ${specs.power}`);
 
     if (vehicle.features.length > 0) {
       parts.push(`Opcionais: ${vehicle.features.join(', ')}`);
@@ -176,7 +182,7 @@ export class EmbeddingService {
 
     let synced = 0;
     let failed = 0;
-    let skipped = 0;
+    const skipped = 0;
 
     // Process in batches
     for (let i = 0; i < vehicles.length; i += batchSize) {
@@ -204,12 +210,16 @@ export class EmbeddingService {
           });
           synced++;
         } catch (error) {
-          this.logger.error(`Failed to save embedding for ${vehicle.id}: ${error.message}`);
+          this.logger.error(
+            `Failed to save embedding for ${vehicle.id}: ${error.message}`,
+          );
           failed++;
         }
       }
 
-      this.logger.log(`Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vehicles.length / batchSize)}`);
+      this.logger.log(
+        `Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vehicles.length / batchSize)}`,
+      );
     }
 
     return { synced, failed, skipped };

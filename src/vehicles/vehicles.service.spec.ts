@@ -10,6 +10,7 @@ const mockPrismaService = {
     findUnique: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    count: jest.fn(),
   },
 };
 
@@ -77,22 +78,35 @@ describe('VehiclesService', () => {
   });
 
   describe('findAll', () => {
-    it('should return an array of vehicles', async () => {
+    it('should return paginated vehicles', async () => {
       mockPrismaService.vehicle.findMany.mockResolvedValue([mockVehicle]);
+      mockPrismaService.vehicle.count.mockResolvedValue(1);
+
       const result = await service.findAll();
-      expect(result).toEqual([mockVehicle]);
+
+      expect(result).toEqual({
+        data: [mockVehicle],
+        meta: {
+          total: 1,
+          page: 1,
+          limit: 20,
+          totalPages: 1,
+        },
+      });
       expect(prisma.vehicle.findMany).toHaveBeenCalled();
+      expect(prisma.vehicle.count).toHaveBeenCalled();
     });
 
     it('should apply filters when provided', async () => {
       mockPrismaService.vehicle.findMany.mockResolvedValue([mockVehicle]);
-      // filters implemented in service signature
+      mockPrismaService.vehicle.count.mockResolvedValue(1);
+
       await service.findAll({ make: 'Toyota', priceMin: 10000 });
 
       expect(prisma.vehicle.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            make: 'Toyota',
+            make: { equals: 'Toyota', mode: 'insensitive' },
             price: expect.objectContaining({ gte: 10000 }),
           }),
         }),
@@ -135,9 +149,19 @@ describe('VehiclesService', () => {
 
   describe('remove', () => {
     it('should remove a vehicle', async () => {
+      // Must mock findUnique to return the vehicle first (remove checks if exists)
+      mockPrismaService.vehicle.findUnique.mockResolvedValue(mockVehicle);
       mockPrismaService.vehicle.delete.mockResolvedValue(mockVehicle);
+
       const result = await service.remove('1');
       expect(result).toEqual(mockVehicle);
+      expect(prisma.vehicle.findUnique).toHaveBeenCalledWith({ where: { id: '1' } });
+      expect(prisma.vehicle.delete).toHaveBeenCalledWith({ where: { id: '1' } });
+    });
+
+    it('should throw NotFoundException if vehicle does not exist', async () => {
+      mockPrismaService.vehicle.findUnique.mockResolvedValue(null);
+      await expect(service.remove('999')).rejects.toThrow(NotFoundException);
     });
   });
 });

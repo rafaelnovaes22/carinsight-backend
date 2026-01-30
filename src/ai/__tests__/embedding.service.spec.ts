@@ -48,7 +48,8 @@ describe('EmbeddingService', () => {
       expect(text).toContain('Toyota Corolla 2023');
       expect(text).toContain('Sedan');
       expect(text).toContain('Seminovo');
-      expect(text).toContain('15.000 km');
+      // Check for mileage (locale-agnostic - could be 15.000 or 15,000)
+      expect(text).toMatch(/15[.,]000 km/);
       expect(text).toContain('Automático');
       expect(text).toContain('Ar condicionado');
     });

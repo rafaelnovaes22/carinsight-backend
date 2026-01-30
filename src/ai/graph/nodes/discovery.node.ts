@@ -5,6 +5,111 @@ import { Logger } from '@nestjs/common';
 const logger = new Logger('DiscoveryNode');
 
 /**
+ * Detect if user is correcting their name
+ * Returns the corrected name or null if not a correction
+ */
+function detectNameCorrection(
+  message: string,
+  currentName?: string,
+): string | null {
+  // Patterns for name correction
+  const correctionPatterns = [
+    // "é Rafael na verdade", "na verdade é Rafael"
+    /(?:é|e)\s+([A-ZÀ-Ú][a-zà-ú]+)\s+(?:na verdade|na real)/i,
+    /(?:na verdade|na real)\s+(?:é|e|sou)\s+([A-ZÀ-Ú][a-zà-ú]+)/i,
+    // "meu nome é Rafael", "me chamo Rafael"
+    /(?:meu nome [eé]|me chamo)\s+([A-ZÀ-Ú][a-zà-ú]+)/i,
+    // "Rafael, não Rafaek", "é Rafael e não Rafaek"
+    /([A-ZÀ-Ú][a-zà-ú]+),?\s+(?:não|e não|nao)\s+[A-ZÀ-Ú][a-zà-ú]+/i,
+    // "pode me chamar de Rafael", "me chama de Rafael"
+    /(?:pode me chamar de|me chama de|chama de)\s+([A-ZÀ-Ú][a-zà-ú]+)/i,
+    // "sou Rafael" or "sou o Rafael"
+    /^sou\s+(?:o\s+)?([A-ZÀ-Ú][a-zà-ú]+)$/i,
+    // "errei, é Rafael" or "errado, é Rafael"
+    /(?:errei|errado|erro),?\s+(?:é|e|sou)\s+([A-ZÀ-Ú][a-zà-ú]+)/i,
+    // "desculpa, Rafael" or "desculpe, é Rafael"
+    /(?:desculpa|desculpe),?\s+(?:é\s+)?([A-ZÀ-Ú][a-zà-ú]+)/i,
+    // "corrigindo: Rafael" or "correção: Rafael"
+    /(?:corrigindo|correção|correcao):?\s+([A-ZÀ-Ú][a-zà-ú]+)/i,
+  ];
+
+  for (const pattern of correctionPatterns) {
+    const match = message.match(pattern);
+    if (match && match[1]) {
+      const name = match[1].trim();
+      // Filter common non-name words
+      const nonNames = [
+        'oi',
+        'ola',
+        'olá',
+        'bom',
+        'boa',
+        'dia',
+        'tarde',
+        'noite',
+        'quero',
+        'preciso',
+        'um',
+        'uma',
+        'carro',
+        'suv',
+        'sedan',
+        'sim',
+        'nao',
+        'não',
+      ];
+      if (!nonNames.includes(name.toLowerCase()) && name.length > 1) {
+        logger.log(`Name correction detected: "${currentName}" -> "${name}"`);
+        return name;
+      }
+    }
+  }
+
+  // Check if it's just a single capitalized word that looks like a name
+  // and is different from current name (possible typo correction)
+  if (currentName) {
+    const singleNameMatch = message.match(/^([A-ZÀ-Ú][a-zà-ú]+)$/);
+    if (singleNameMatch) {
+      const possibleName = singleNameMatch[1];
+      const currentLower = currentName.toLowerCase();
+      const possibleLower = possibleName.toLowerCase();
+
+      // Check if it's similar but different (typo correction)
+      // e.g., "Rafaek" -> "Rafael"
+      if (
+        possibleLower !== currentLower &&
+        isSimilarName(currentLower, possibleLower)
+      ) {
+        logger.log(
+          `Possible typo correction detected: "${currentName}" -> "${possibleName}"`,
+        );
+        return possibleName;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Check if two names are similar (possible typo)
+ * Uses simple Levenshtein-like comparison
+ */
+function isSimilarName(name1: string, name2: string): boolean {
+  if (Math.abs(name1.length - name2.length) > 2) return false;
+
+  let differences = 0;
+  const maxLen = Math.max(name1.length, name2.length);
+
+  for (let i = 0; i < maxLen; i++) {
+    if (name1[i] !== name2[i]) differences++;
+  }
+
+  // Allow up to 2 character differences for similar names
+  return differences <= 2 && differences > 0;
+}
+
+/**
  * Extract preferences from user message using LLM-like pattern matching
  */
 function extractPreferences(
@@ -206,6 +311,56 @@ export function discoveryNode(state: IGraphState): Partial<IGraphState> {
   const message = lastMessage.content;
   const lower = message.toLowerCase();
   logger.log(`Processing discovery: "${message.substring(0, 50)}..."`);
+
+  // Check for name correction FIRST
+  const correctedName = detectNameCorrection(
+    message,
+    state.profile.customerName,
+  );
+  if (correctedName) {
+    const firstName = correctedName.split(' ')[0];
+    const updatedProfile = {
+      ...state.profile,
+      customerName: correctedName,
+    };
+
+    // Generate appropriate follow-up based on what info we already have
+    let followUp = '';
+    if (!state.profile.budget) {
+      followUp = `Qual seria sua faixa de orçamento para o carro? 🚗💰`;
+    } else if (!state.profile.usage && !state.profile.bodyType) {
+      followUp = `E qual o principal uso que você pretende dar para o carro? 🚗`;
+    } else if (canRecommend(updatedProfile)) {
+      // We have enough info, go to search
+      return {
+        next: 'search',
+        profile: updatedProfile,
+        metadata: {
+          ...state.metadata,
+          lastMessageAt: Date.now(),
+        },
+        messages: [
+          new AIMessage(
+            `Desculpa pelo erro, ${firstName}! 😅 Deixa eu buscar as melhores opções pra você...`,
+          ),
+        ],
+      };
+    } else {
+      followUp = `Como posso te ajudar a encontrar o carro ideal? 🚗`;
+    }
+
+    return {
+      next: 'discovery',
+      profile: updatedProfile,
+      metadata: {
+        ...state.metadata,
+        lastMessageAt: Date.now(),
+      },
+      messages: [
+        new AIMessage(`Desculpa pelo erro, ${firstName}! 😅\n\n${followUp}`),
+      ],
+    };
+  }
 
   // Check for handoff request
   if (/vendedor|humano|atendente|pessoa real/i.test(lower)) {

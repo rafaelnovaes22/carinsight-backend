@@ -7,10 +7,12 @@ import { UsersModule } from './users/users.module';
 import { InteractionsModule } from './interactions/interactions.module';
 import { DealersModule } from './dealers/dealers.module';
 import { AiModule } from './ai/ai.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     PrismaModule,
+    AuthModule,
     VehiclesModule,
     UsersModule,
     InteractionsModule,
@@ -20,5 +22,5 @@ import { AiModule } from './ai/ai.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
 

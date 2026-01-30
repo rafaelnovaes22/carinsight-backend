@@ -2,6 +2,7 @@ import { Controller, Post, Body, Param, Get, Delete, HttpCode, HttpStatus } from
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { ChatService, ChatResponse } from './chat.service';
 import { Public } from '../../auth/decorators/public.decorator';
+import { ChatThrottle } from '../../common/decorators/throttle.decorator';
 
 class StartChatDto {
   vehicleId?: string;
@@ -16,6 +17,7 @@ class SendMessageDto {
 
 @ApiTags('Chat')
 @Controller('api/chat')
+@ChatThrottle() // Rate limiting for chat endpoints
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 

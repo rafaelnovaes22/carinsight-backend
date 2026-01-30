@@ -19,9 +19,11 @@ import { EmbeddingService } from '../embeddings/embedding.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
+import { SearchThrottle, AiThrottle } from '../../common/decorators/throttle.decorator';
 
 @ApiTags('search')
 @Controller('search')
+@SearchThrottle() // Rate limiting for search endpoints
 export class SearchController {
   constructor(
     private readonly vectorSearch: VectorSearchService,
@@ -92,6 +94,7 @@ export class SearchController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @ApiBearerAuth('JWT-auth')
+  @AiThrottle() // Stricter limit for AI-intensive operations
   @ApiOperation({ summary: 'Sincronizar embeddings de todos os veículos (Admin)' })
   @ApiResponse({ status: 200, description: 'Resultado da sincronização' })
   async syncAllEmbeddings() {
@@ -102,6 +105,7 @@ export class SearchController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'DEALER')
   @ApiBearerAuth('JWT-auth')
+  @AiThrottle() // Stricter limit for AI-intensive operations
   @ApiOperation({ summary: 'Sincronizar embedding de um veículo específico' })
   @ApiResponse({ status: 200, description: 'Embedding sincronizado' })
   async syncVehicleEmbedding(@Param('id', ParseUUIDPipe) id: string) {

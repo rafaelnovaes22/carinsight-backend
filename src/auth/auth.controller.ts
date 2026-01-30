@@ -19,9 +19,11 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { AuthThrottle } from '../common/decorators/throttle.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
+@AuthThrottle() // Stricter rate limiting for auth endpoints
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

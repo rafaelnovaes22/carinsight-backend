@@ -48,7 +48,7 @@ export class ChatService {
     private prisma: PrismaService,
     private conversationGraph: ConversationGraphService,
     private vectorSearch: VectorSearchService,
-  ) {}
+  ) { }
 
   /**
    * Start a new chat session
@@ -69,7 +69,7 @@ export class ChatService {
     this.logger.log(`Starting chat session: ${sessionId}`);
 
     let vehicleContext = '';
-    let vehicleData: VehicleData | null = null;
+    let vehicleData: VehicleData | undefined = undefined;
 
     // If vehicle context provided, get vehicle details and set as lead context
     if (dto.vehicleId) {

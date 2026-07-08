@@ -12,6 +12,8 @@ import {
   VectorSearchService,
   SearchFilters,
 } from '../vector/vector-search.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 interface VehicleSearchResult {
   id: string;
@@ -51,9 +53,11 @@ export interface ConversationResponse {
 export class ConversationGraphService implements OnModuleInit {
   private readonly logger = new Logger(ConversationGraphService.name);
   private app: Runnable;
-  private sessions: Map<string, ConversationSession> = new Map();
 
-  constructor(private vectorSearch: VectorSearchService) {}
+  constructor(
+    private vectorSearch: VectorSearchService,
+    private prisma: PrismaService,
+  ) { }
 
   onModuleInit() {
     this.initializeGraph();
@@ -318,9 +322,14 @@ export class ConversationGraphService implements OnModuleInit {
     this.logger.log(`Processing message for thread: ${threadId}`);
 
     try {
-      // Get or create session
-      let session = this.sessions.get(threadId);
-      if (!session) {
+      // Get session from database
+      const existingSession = await this.prisma.chatSession.findUnique({
+        where: { threadId },
+      });
+
+      let session: ConversationSession;
+
+      if (!existingSession) {
         session = {
           threadId,
           state: createInitialState(),
@@ -335,7 +344,6 @@ export class ConversationGraphService implements OnModuleInit {
         }
 
         // If there's an interested vehicle, set it as the initial recommendation
-        // This creates the lead context - the customer started from this specific vehicle
         if (context?.interestedVehicle) {
           const vehicle = context.interestedVehicle;
           session.state.recommendations = [
@@ -357,7 +365,6 @@ export class ConversationGraphService implements OnModuleInit {
             },
           ];
 
-          // Store in profile for lead tracking
           session.state.profile = {
             ...session.state.profile,
             _lastShownVehicles: [
@@ -369,7 +376,6 @@ export class ConversationGraphService implements OnModuleInit {
                 price: vehicle.price,
               },
             ],
-            // Extract preferences from the vehicle they're interested in
             bodyType: (vehicle.bodyType?.toLowerCase() || undefined) as
               | 'suv'
               | 'sedan'
@@ -377,18 +383,29 @@ export class ConversationGraphService implements OnModuleInit {
               | 'pickup'
               | 'minivan'
               | undefined,
-            budget: Math.round(vehicle.price * 1.2), // Allow 20% flexibility
+            budget: Math.round(vehicle.price * 1.2),
           };
 
-          // Skip to recommendation node since we already have a vehicle
           session.state.next = 'recommendation';
-
           this.logger.log(
             `Lead context set for vehicle ${vehicle.id}: ${vehicle.make} ${vehicle.model}`,
           );
         }
 
-        this.sessions.set(threadId, session);
+        // Save initial state to DB
+        await this.prisma.chatSession.create({
+          data: {
+            threadId,
+            state: session.state as unknown as Prisma.InputJsonValue,
+          },
+        });
+      } else {
+        session = {
+          threadId,
+          state: existingSession.state as unknown as IGraphState,
+          createdAt: existingSession.createdAt,
+          updatedAt: existingSession.updatedAt,
+        };
       }
 
       // Invoke the graph with the new message
@@ -397,7 +414,9 @@ export class ConversationGraphService implements OnModuleInit {
       // Prepare input - spread state first, then add new message
       const input = {
         ...session.state,
-        messages: [...session.state.messages, new HumanMessage(message)],
+        messages: Array.isArray(session.state.messages)
+          ? [...session.state.messages, new HumanMessage(message)]
+          : [new HumanMessage(message)],
       };
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -405,9 +424,13 @@ export class ConversationGraphService implements OnModuleInit {
 
       const finalState = result as IGraphState;
 
-      // Update session
-      session.state = finalState;
-      session.updatedAt = new Date();
+      // Update session in DB
+      await this.prisma.chatSession.update({
+        where: { threadId },
+        data: {
+          state: finalState as unknown as Prisma.InputJsonValue,
+        },
+      });
 
       // Extract response from last AI message
       const lastMessage = finalState.messages[finalState.messages.length - 1];
@@ -489,22 +512,40 @@ export class ConversationGraphService implements OnModuleInit {
   /**
    * Get session state (for debugging/admin)
    */
-  getSession(threadId: string): ConversationSession | undefined {
-    return this.sessions.get(threadId);
+  async getSession(threadId: string): Promise<ConversationSession | undefined> {
+    const session = await this.prisma.chatSession.findUnique({
+      where: { threadId },
+    });
+
+    if (!session) return undefined;
+
+    return {
+      threadId: session.threadId,
+      state: session.state as unknown as IGraphState,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+    };
   }
 
   /**
    * Clear session (reset conversation)
    */
-  clearSession(threadId: string): void {
-    this.sessions.delete(threadId);
-    this.logger.log(`Session cleared: ${threadId}`);
+  async clearSession(threadId: string): Promise<void> {
+    try {
+      await this.prisma.chatSession.delete({
+        where: { threadId },
+      });
+      this.logger.log(`Session cleared: ${threadId}`);
+    } catch (e) {
+      // Ignore if not found
+      this.logger.log(`Session not found to clear: ${threadId}`);
+    }
   }
 
   /**
    * Get all active sessions count
    */
-  getActiveSessionsCount(): number {
-    return this.sessions.size;
+  async getActiveSessionsCount(): Promise<number> {
+    return this.prisma.chatSession.count();
   }
 }

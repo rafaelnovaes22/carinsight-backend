@@ -34,7 +34,7 @@ class SendMessageDto {
 @Controller('api/chat')
 @ChatThrottle() // Rate limiting for chat endpoints
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(private readonly chatService: ChatService) { }
 
   /**
    * Start a new chat session
@@ -99,8 +99,8 @@ export class ChatController {
     status: 200,
     description: 'Current conversation state',
   })
-  getConversationState(@Param('sessionId') sessionId: string) {
-    const session = this.chatService.getConversationState(sessionId);
+  async getConversationState(@Param('sessionId') sessionId: string) {
+    const session = await this.chatService.getConversationState(sessionId);
     if (!session) {
       return { error: 'Session not found' };
     }
@@ -126,8 +126,8 @@ export class ChatController {
     status: 204,
     description: 'Conversation reset successfully',
   })
-  resetConversation(@Param('sessionId') sessionId: string) {
-    this.chatService.resetConversation(sessionId);
+  async resetConversation(@Param('sessionId') sessionId: string) {
+    await this.chatService.resetConversation(sessionId);
   }
 
   /**
@@ -144,9 +144,9 @@ export class ChatController {
       },
     },
   })
-  getStats() {
+  async getStats() {
     return {
-      activeSessions: this.chatService.getActiveSessionsCount(),
+      activeSessions: await this.chatService.getActiveSessionsCount(),
     };
   }
 }

@@ -156,21 +156,21 @@ export class ChatService {
   /**
    * Get conversation state (for debugging/admin)
    */
-  getConversationState(sessionId: string): ConversationSession | undefined {
+  async getConversationState(sessionId: string): Promise<ConversationSession | undefined> {
     return this.conversationGraph.getSession(sessionId);
   }
 
   /**
    * Reset conversation
    */
-  resetConversation(sessionId: string): void {
-    this.conversationGraph.clearSession(sessionId);
+  async resetConversation(sessionId: string): Promise<void> {
+    await this.conversationGraph.clearSession(sessionId);
   }
 
   /**
    * Get active sessions count
    */
-  getActiveSessionsCount(): number {
+  async getActiveSessionsCount(): Promise<number> {
     return this.conversationGraph.getActiveSessionsCount();
   }
 }

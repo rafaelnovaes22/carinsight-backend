@@ -2,20 +2,20 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: carinsight_postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: carinsight
     ports:
-      - "5432:5432"
+      - "5438:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - carinsight-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d carinsight"]
+      test: [ "CMD-SHELL", "pg_isready -U admin -d carinsight" ]
       interval: 5s
       timeout: 5s
       retries: 5

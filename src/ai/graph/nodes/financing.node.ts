@@ -12,8 +12,10 @@ function calculateFinancing(
   downPayment: number,
   months: number,
 ): { monthlyPayment: number; totalAmount: number; interestRate: number } {
-  // Typical Brazilian car financing rates (around 1.5-2% monthly)
-  const monthlyRate = 0.0179; // 1.79% monthly
+  // Monthly rate configurable per store (default: typical Brazilian rate)
+  const monthlyRate = parseFloat(
+    process.env.FINANCING_MONTHLY_RATE || '0.0179',
+  );
   const annualRate = Math.pow(1 + monthlyRate, 12) - 1;
 
   const financedAmount = vehiclePrice - downPayment;

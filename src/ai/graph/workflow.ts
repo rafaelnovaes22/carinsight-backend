@@ -4,7 +4,7 @@ import {
   GraphNode,
   CustomerProfile,
   VehicleRecommendation,
-  QuizState,
+  HandoffPayload,
   GraphMetadata,
 } from './types/graph-state.types';
 import {
@@ -28,6 +28,10 @@ const GraphState = Annotation.Root({
     default: () => [],
   }),
   phoneNumber: Annotation<string>({
+    reducer: (_x, y) => y,
+    default: () => '',
+  }),
+  sessionId: Annotation<string>({
     reducer: (_x, y) => y,
     default: () => '',
   }),
@@ -57,18 +61,17 @@ const GraphState = Annotation.Root({
       flags: [],
     }),
   }),
-  quiz: Annotation<QuizState>({
-    reducer: (x, y) => ({ ...x, ...y }),
-    default: () => ({
-      currentQuestion: 1,
-      progress: 0,
-      answers: {},
-      isComplete: false,
-    }),
+  handoff: Annotation<HandoffPayload | undefined>({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => undefined,
   }),
 });
 
 type GraphStateType = typeof GraphState.State;
+
+type NodeFn = (
+  state: GraphStateType,
+) => Partial<GraphStateType> | Promise<Partial<GraphStateType>>;
 
 /**
  * Route function that determines the next node based on state
@@ -96,21 +99,18 @@ function routeNode(state: GraphStateType): string {
 
   switch (nextNode) {
     case 'greeting':
-      return 'greeting';
     case 'discovery':
-      return 'discovery';
     case 'search':
-      return 'search';
     case 'recommendation':
-      return 'recommendation';
     case 'financing':
-      return 'financing';
     case 'trade_in':
-      return 'trade_in';
     case 'negotiation':
-      return 'negotiation';
-    case 'end':
+    case 'lead_handoff':
+      return nextNode;
     case 'handoff':
+      // Human handoff now flows through the lead_handoff node
+      return 'lead_handoff';
+    case 'end':
       return END;
     default:
       logger.warn(
@@ -120,36 +120,39 @@ function routeNode(state: GraphStateType): string {
   }
 }
 
-// Define all possible route destinations
-const _routeDestinations = [
-  'greeting',
-  'discovery',
-  'search',
-  'recommendation',
-  'financing',
-  'trade_in',
-  'negotiation',
-  END,
-] as const;
+export interface ConversationGraphOptions {
+  /** Search node integrated with VectorSearchService (required in production) */
+  searchNode: NodeFn;
+  /** Lead handoff node integrated with LeadService (required in production) */
+  leadHandoffNode: NodeFn;
+  /** Optional LLM-powered node overrides (fall back to rule-based nodes) */
+  greetingNode?: NodeFn;
+  discoveryNode?: NodeFn;
+  recommendationNode?: NodeFn;
+  financingNode?: NodeFn;
+  tradeInNode?: NodeFn;
+  negotiationNode?: NodeFn;
+  checkpointer?: any;
+}
 
 /**
- * Create the conversation graph with optional search function injection
+ * Create the conversation graph with injected nodes
  */
-export function createConversationGraph(options?: {
-  searchNode?: (state: GraphStateType) => Promise<Partial<GraphStateType>>;
-  checkpointer?: any;
-}) {
+export function createConversationGraph(options: ConversationGraphOptions) {
   // Use any to bypass strict typing issues with LangGraph
   const workflow = new StateGraph(GraphState) as any;
 
-  // Add nodes
-  workflow.addNode('greeting', greetingNode);
-  workflow.addNode('discovery', discoveryNode);
-  workflow.addNode('search', options?.searchNode || defaultSearchNode);
-  workflow.addNode('recommendation', recommendationNode);
-  workflow.addNode('financing', financingNode);
-  workflow.addNode('trade_in', tradeInNode);
-  workflow.addNode('negotiation', negotiationNode);
+  workflow.addNode('greeting', options.greetingNode || greetingNode);
+  workflow.addNode('discovery', options.discoveryNode || discoveryNode);
+  workflow.addNode('search', options.searchNode);
+  workflow.addNode(
+    'recommendation',
+    options.recommendationNode || recommendationNode,
+  );
+  workflow.addNode('financing', options.financingNode || financingNode);
+  workflow.addNode('trade_in', options.tradeInNode || tradeInNode);
+  workflow.addNode('negotiation', options.negotiationNode || negotiationNode);
+  workflow.addNode('lead_handoff', options.leadHandoffNode);
 
   // Set entry point - START -> greeting
   workflow.addEdge(START, 'greeting');
@@ -163,6 +166,7 @@ export function createConversationGraph(options?: {
     financing: 'financing',
     trade_in: 'trade_in',
     negotiation: 'negotiation',
+    lead_handoff: 'lead_handoff',
     [END]: END,
   };
 
@@ -173,26 +177,12 @@ export function createConversationGraph(options?: {
   workflow.addConditionalEdges('financing', routeNode, routeMap);
   workflow.addConditionalEdges('trade_in', routeNode, routeMap);
   workflow.addConditionalEdges('negotiation', routeNode, routeMap);
+  workflow.addConditionalEdges('lead_handoff', routeNode, routeMap);
 
   // Compile with optional checkpointer
   return workflow.compile({
-    checkpointer: options?.checkpointer,
+    checkpointer: options.checkpointer,
   });
 }
 
-/**
- * Default search node (placeholder - real implementation injected at runtime)
- */
-function defaultSearchNode(state: GraphStateType): Partial<GraphStateType> {
-  logger.warn('Using default search node - no results');
-  return {
-    next: 'recommendation',
-    recommendations: [],
-    metadata: {
-      ...state.metadata,
-      lastMessageAt: Date.now(),
-    },
-  };
-}
-
-export type { GraphStateType };
+export type { GraphStateType, NodeFn };

@@ -38,6 +38,12 @@ export interface ChatResponse {
     vehicle?: VehicleData;
   }>;
   currentNode?: string;
+  /** Present when the lead is ready to continue on the store's WhatsApp */
+  handoff?: {
+    leadId: string;
+    waLink: string;
+    summary: string;
+  };
 }
 
 @Injectable()
@@ -48,7 +54,7 @@ export class ChatService {
     private prisma: PrismaService,
     private conversationGraph: ConversationGraphService,
     private vectorSearch: VectorSearchService,
-  ) { }
+  ) {}
 
   /**
    * Start a new chat session
@@ -150,13 +156,16 @@ export class ChatService {
       suggestedActions: result.suggestedActions,
       recommendations: result.recommendations,
       currentNode: result.currentNode,
+      handoff: result.handoff,
     };
   }
 
   /**
    * Get conversation state (for debugging/admin)
    */
-  async getConversationState(sessionId: string): Promise<ConversationSession | undefined> {
+  async getConversationState(
+    sessionId: string,
+  ): Promise<ConversationSession | undefined> {
     return this.conversationGraph.getSession(sessionId);
   }
 

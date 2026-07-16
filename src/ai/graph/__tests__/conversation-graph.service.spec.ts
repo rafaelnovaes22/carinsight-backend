@@ -2,12 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConversationGraphService } from '../conversation-graph.service';
 import { VectorSearchService } from '../../vector/vector-search.service';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { IGraphState } from '../types/graph-state.types';
+import {
+  LlmRouterService,
+  LlmUnavailableError,
+} from '../../llm/llm-router.service';
+import { PreferenceExtractorService } from '../../llm/preference-extractor.service';
+import { LeadService } from '../../lead/lead.service';
 
 describe('ConversationGraphService', () => {
   let service: ConversationGraphService;
   let vectorSearchService: jest.Mocked<VectorSearchService>;
-  let prismaService: any;
+  let leadService: { createLeadFromState: jest.Mock };
 
   // Define mockVehicles here to be accessible by mockVectorSearch
   const mockVehicles = [
@@ -85,7 +90,29 @@ describe('ConversationGraphService', () => {
         count: jest.fn().mockImplementation(() => {
           return Promise.resolve(mockDb.size);
         }),
-      }
+      },
+    };
+
+    // LLM unavailable in unit tests: nodes fall back to rule-based behavior
+    const mockLlmRouter = {
+      chat: jest
+        .fn()
+        .mockRejectedValue(new LlmUnavailableError('unavailable in tests')),
+      isAvailable: jest.fn().mockReturnValue(false),
+    };
+
+    const mockPreferenceExtractor = {
+      extract: jest
+        .fn()
+        .mockRejectedValue(new LlmUnavailableError('unavailable in tests')),
+    };
+
+    const mockLeadService = {
+      createLeadFromState: jest.fn().mockResolvedValue({
+        leadId: 'lead-test-1',
+        waLink: 'https://wa.me/5511999999999?text=resumo',
+        summary: 'Novo lead do chat do site',
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -99,12 +126,24 @@ describe('ConversationGraphService', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        {
+          provide: LlmRouterService,
+          useValue: mockLlmRouter,
+        },
+        {
+          provide: PreferenceExtractorService,
+          useValue: mockPreferenceExtractor,
+        },
+        {
+          provide: LeadService,
+          useValue: mockLeadService,
+        },
       ],
     }).compile();
 
     service = module.get<ConversationGraphService>(ConversationGraphService);
     vectorSearchService = module.get(VectorSearchService);
-    prismaService = module.get(PrismaService);
+    leadService = module.get(LeadService);
 
     // Call the init method directly since Test module doesn't trigger it
     service.onModuleInit();
@@ -177,15 +216,30 @@ describe('ConversationGraphService', () => {
       expect(vectorSearchService.searchSemantic).toHaveBeenCalled();
     });
 
-    it('should handle handoff request', async () => {
+    it('should create lead and return wa.me handoff on vendor request', async () => {
       await service.processMessage('test-thread-5', 'Oi, sou Ana');
       const result = await service.processMessage(
         'test-thread-5',
         'Quero falar com um vendedor',
       );
 
-      expect(result.response).toContain('consultor');
+      expect(leadService.createLeadFromState).toHaveBeenCalled();
+      expect(result.handoff?.waLink).toContain('wa.me');
+      expect(result.handoff?.leadId).toBe('lead-test-1');
+      expect(result.suggestedActions).toContain('OPEN_WHATSAPP');
       expect(result.suggestedActions).toContain('HANDOFF_HUMAN');
+      expect(result.response).toContain('WhatsApp');
+    });
+
+    it('should not create a second lead in the same session', async () => {
+      await service.processMessage('test-thread-5b', 'Oi, sou Bia');
+      await service.processMessage(
+        'test-thread-5b',
+        'Quero falar com um vendedor',
+      );
+      await service.processMessage('test-thread-5b', 'Quero falar com humano');
+
+      expect(leadService.createLeadFromState).toHaveBeenCalledTimes(1);
     });
 
     it('should handle financing intent after recommendations', async () => {

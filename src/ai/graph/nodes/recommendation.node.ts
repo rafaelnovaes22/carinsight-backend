@@ -143,44 +143,29 @@ export function recommendationNode(state: IGraphState): Partial<IGraphState> {
     }
   }
 
-  // Handle "agendar" / schedule visit
+  // Handle "agendar" / schedule visit - scheduling happens with the store on WhatsApp
   if (/agendar|visita|test.?drive|conhecer/i.test(lower)) {
     logger.log('Visit requested');
     return {
-      next: 'negotiation',
+      next: 'lead_handoff',
       metadata: {
         ...state.metadata,
         lastMessageAt: Date.now(),
         flags: [...state.metadata.flags, 'visit_requested'],
       },
-      messages: [
-        new AIMessage(
-          `Ótimo! 🎉\n\n` +
-            `Vou pedir pro nosso consultor agendar sua visita.\n\n` +
-            `Ele vai entrar em contato pelo WhatsApp pra confirmar o melhor horário.\n\n` +
-            `_Obrigado por escolher o CarInsight!_ 🚗`,
-        ),
-      ],
     };
   }
 
-  // Handle "vendedor" / talk to human
+  // Handle "vendedor" / talk to human - lead_handoff node produces the response
   if (/vendedor|humano|atendente|pessoa/i.test(lower)) {
     logger.log('Human handoff requested');
     return {
-      next: 'handoff',
+      next: 'lead_handoff',
       metadata: {
         ...state.metadata,
         lastMessageAt: Date.now(),
         flags: [...state.metadata.flags, 'handoff_requested'],
       },
-      messages: [
-        new AIMessage(
-          `Claro! Vou te transferir para um consultor. 👨‍💼\n\n` +
-            `Ele vai entrar em contato em breve.\n\n` +
-            `_Já passei suas informações pra ele!_`,
-        ),
-      ],
     };
   }
 
@@ -208,16 +193,17 @@ export function recommendationNode(state: IGraphState): Partial<IGraphState> {
     };
   }
 
-  // Handle interest / purchase intent
+  // Handle interest / purchase intent - ready lead goes to the store's WhatsApp
   if (
     /gostei|interessei|quero esse|quero o|vou levar|fechar|comprar/i.test(lower)
   ) {
     logger.log('Purchase interest detected');
     return {
-      next: 'negotiation',
+      next: 'lead_handoff',
       metadata: {
         ...state.metadata,
         lastMessageAt: Date.now(),
+        flags: [...state.metadata.flags, 'purchase_intent'],
       },
     };
   }

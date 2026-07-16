@@ -7,7 +7,7 @@ const logger = new Logger('NegotiationNode');
 /**
  * Format customer summary for handoff
  */
-function formatCustomerSummary(state: IGraphState): string {
+export function formatCustomerSummary(state: IGraphState): string {
   const profile = state.profile;
   let summary = `📋 *Resumo do Cliente*\n\n`;
 
@@ -91,6 +91,18 @@ export function negotiationNode(state: IGraphState): Partial<IGraphState> {
   const message = lastMessage.content;
   const lower = message.toLowerCase();
   logger.log(`Processing negotiation: "${message.substring(0, 50)}..."`);
+
+  // Ready to close / talk to the store - go to lead handoff
+  if (/vendedor|humano|atendente|fechar|whatsapp|comprar/i.test(lower)) {
+    return {
+      next: 'lead_handoff',
+      metadata: {
+        ...state.metadata,
+        lastMessageAt: Date.now(),
+        flags: [...state.metadata.flags, 'handoff_requested'],
+      },
+    };
+  }
 
   // Handle back to recommendations
   if (/voltar|ver carros|outras opções|mais carros/i.test(lower)) {

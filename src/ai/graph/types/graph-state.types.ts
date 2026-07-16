@@ -90,13 +90,12 @@ export interface VehicleRecommendation {
 }
 
 /**
- * Quiz state for guided discovery
+ * Handoff payload - lead ready to continue on the store's WhatsApp
  */
-export interface QuizState {
-  currentQuestion: number;
-  progress: number;
-  answers: Record<string, unknown>;
-  isComplete: boolean;
+export interface HandoffPayload {
+  leadId: string;
+  waLink: string;
+  summary: string;
 }
 
 /**
@@ -116,12 +115,13 @@ export interface GraphMetadata {
 export interface IGraphState {
   messages: BaseMessage[];
   phoneNumber: string;
+  sessionId?: string;
   userId?: string;
   profile: Partial<CustomerProfile>;
   recommendations: VehicleRecommendation[];
   next: GraphNode;
   metadata: GraphMetadata;
-  quiz: QuizState;
+  handoff?: HandoffPayload;
 }
 
 /**
@@ -135,6 +135,7 @@ export type GraphNode =
   | 'financing'
   | 'trade_in'
   | 'negotiation'
+  | 'lead_handoff'
   | 'end'
   | 'handoff';
 
@@ -154,12 +155,6 @@ export function createInitialState(): IGraphState {
       loopCount: 0,
       errorCount: 0,
       flags: [],
-    },
-    quiz: {
-      currentQuestion: 1,
-      progress: 0,
-      answers: {},
-      isComplete: false,
     },
   };
 }

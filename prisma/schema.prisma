@@ -125,3 +125,30 @@ model ChatSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+enum LeadStatus {
+  NEW
+  NOTIFIED
+  CONTACTED
+  CONVERTED
+  LOST
+}
+
+model Lead {
+  id           String     @id @default(uuid())
+  sessionId    String     // ChatSession.threadId that originated the lead
+  name         String
+  phone        String?
+  email        String?
+  vehicles     Json       // Vehicles of interest [{vehicleId, make, model, yearModel, price}]
+  financing    Json?      // {downPayment, months, monthlyPayment}
+  tradeIn      Json?      // {brand, model, year, estimatedValue}
+  profile      Json?      // CustomerProfile snapshot
+  summary      String     // Human-readable summary sent to the store
+  status       LeadStatus @default(NEW)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([sessionId])
+  @@index([status, createdAt])
+}

@@ -21,8 +21,15 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  // Habilitar CORS
-  app.enableCors();
+  // Habilitar CORS - origens do site + header de sessão anônima (favoritos)
+  app.enableCors({
+    origin:
+      process.env.NODE_ENV === 'production'
+        ? ['https://carinsight.com.br', 'https://www.carinsight.com.br']
+        : true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-session-id'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  });
 
   // Configurar ValidationPipe global
   app.useGlobalPipes(

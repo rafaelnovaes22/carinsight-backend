@@ -27,6 +27,17 @@ interface CircuitBreaker {
   isOpen: boolean;
 }
 
+/**
+ * Thrown when no LLM provider can answer; callers should degrade to
+ * their rule-based behavior.
+ */
+export class LlmUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LlmUnavailableError';
+  }
+}
+
 @Injectable()
 export class LlmRouterService {
   private readonly logger = new Logger(LlmRouterService.name);
@@ -162,13 +173,18 @@ export class LlmRouterService {
       }
     }
 
-    // Mock fallback for development
-    this.logger.warn('All providers failed, using mock response');
-    return {
-      content:
-        'Desculpe, estou com dificuldades técnicas no momento. Por favor, tente novamente em alguns instantes.',
-      provider: 'mock',
-    };
+    // Mock fallback is restricted to tests; in production callers must
+    // fall back to their rule-based behavior instead of a canned phrase.
+    if (process.env.NODE_ENV === 'test') {
+      this.logger.warn('All providers failed, using mock response (test env)');
+      return {
+        content:
+          'Desculpe, estou com dificuldades técnicas no momento. Por favor, tente novamente em alguns instantes.',
+        provider: 'mock',
+      };
+    }
+
+    throw new LlmUnavailableError('No LLM provider available');
   }
 
   isAvailable(): boolean {

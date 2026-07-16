@@ -34,7 +34,7 @@ class SendMessageDto {
 @Controller('api/chat')
 @ChatThrottle() // Rate limiting for chat endpoints
 export class ChatController {
-  constructor(private readonly chatService: ChatService) { }
+  constructor(private readonly chatService: ChatService) {}
 
   /**
    * Start a new chat session

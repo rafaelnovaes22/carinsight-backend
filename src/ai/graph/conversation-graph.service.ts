@@ -7,6 +7,7 @@ import {
   VehicleRecommendation,
   CustomerProfile,
   IGraphState,
+  HandoffPayload,
 } from './types/graph-state.types';
 import {
   VectorSearchService,
@@ -14,6 +15,18 @@ import {
 } from '../vector/vector-search.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import {
+  LlmRouterService,
+  LlmUnavailableError,
+} from '../llm/llm-router.service';
+import { PreferenceExtractorService } from '../llm/preference-extractor.service';
+import { LeadService } from '../lead/lead.service';
+import {
+  createLeadHandoffNode,
+  createLlmGreetingNode,
+  createLlmDiscoveryNode,
+  createLlmNegotiationNode,
+} from './nodes';
 
 interface VehicleSearchResult {
   id: string;
@@ -47,6 +60,7 @@ export interface ConversationResponse {
   recommendations?: VehicleRecommendation[];
   profile?: Partial<CustomerProfile>;
   suggestedActions?: string[];
+  handoff?: HandoffPayload;
 }
 
 @Injectable()
@@ -57,7 +71,10 @@ export class ConversationGraphService implements OnModuleInit {
   constructor(
     private vectorSearch: VectorSearchService,
     private prisma: PrismaService,
-  ) { }
+    private llmRouter: LlmRouterService,
+    private preferenceExtractor: PreferenceExtractorService,
+    private leadService: LeadService,
+  ) {}
 
   onModuleInit() {
     this.initializeGraph();
@@ -65,12 +82,20 @@ export class ConversationGraphService implements OnModuleInit {
   }
 
   /**
-   * Initialize the LangGraph workflow with search integration
+   * Initialize the LangGraph workflow with LLM-powered nodes,
+   * vector search and lead handoff integration
    */
   private initializeGraph(): void {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.app = createConversationGraph({
       searchNode: this.createSearchNode(),
+      leadHandoffNode: createLeadHandoffNode(this.leadService),
+      greetingNode: createLlmGreetingNode(this.preferenceExtractor),
+      discoveryNode: createLlmDiscoveryNode(
+        this.llmRouter,
+        this.preferenceExtractor,
+      ),
+      negotiationNode: createLlmNegotiationNode(this.llmRouter),
     });
   }
 
@@ -104,11 +129,14 @@ export class ConversationGraphService implements OnModuleInit {
         }
 
         // Execute semantic search
-        const searchResults = (await this.vectorSearch.searchSemantic(
+        let searchResults = (await this.vectorSearch.searchSemantic(
           query,
           5,
           filters,
         )) as VehicleSearchResult[];
+
+        // Deterministic re-rank on top of the semantic score
+        searchResults = this.rankVehicles(searchResults, state.profile);
 
         if (searchResults.length === 0) {
           this.logger.log('No vehicles found matching criteria');
@@ -142,6 +170,13 @@ export class ConversationGraphService implements OnModuleInit {
               features: result.aiTags,
             },
           }),
+        );
+
+        // Enrich top-3 reasoning with the LLM (single batched call,
+        // heuristic reasoning above stays as fallback)
+        await this.enrichReasoningWithLlm(
+          recommendations.slice(0, 3),
+          state.profile,
         );
 
         this.logger.log(`Found ${recommendations.length} vehicles`);
@@ -182,6 +217,101 @@ export class ConversationGraphService implements OnModuleInit {
         };
       }
     };
+  }
+
+  /**
+   * Deterministic re-ranking on top of semantic scores.
+   * Ported (compact) from the reference bot's vehicle-ranker: rewards
+   * budget fit, recency and low mileage; penalizes over-budget vehicles.
+   */
+  private rankVehicles(
+    results: VehicleSearchResult[],
+    profile: Partial<CustomerProfile>,
+  ): VehicleSearchResult[] {
+    const scored = results.map((v) => {
+      let bonus = 0;
+
+      if (profile.budget) {
+        if (v.price <= profile.budget) {
+          // Reward using most of the budget (better car within reach)
+          bonus += 0.1 * (v.price / profile.budget);
+        } else {
+          // Over budget: strong penalty proportional to excess
+          bonus -= 0.3 * ((v.price - profile.budget) / profile.budget) * 10;
+        }
+      }
+
+      if (profile.minYear && v.yearModel >= profile.minYear) bonus += 0.05;
+      if (profile.maxKm && v.mileage <= profile.maxKm) bonus += 0.05;
+      if (v.mileage < 50000) bonus += 0.03;
+      if (
+        profile.bodyType &&
+        v.bodyType?.toLowerCase() === profile.bodyType.toLowerCase()
+      ) {
+        bonus += 0.1;
+      }
+
+      return { ...v, score: v.score + bonus };
+    });
+
+    return scored.sort((a, b) => b.score - a.score);
+  }
+
+  /**
+   * Replace heuristic reasoning with an individualized LLM justification.
+   * One batched call for all vehicles; silently keeps heuristics on failure.
+   */
+  private async enrichReasoningWithLlm(
+    recommendations: VehicleRecommendation[],
+    profile: Partial<CustomerProfile>,
+  ): Promise<void> {
+    if (recommendations.length === 0 || !this.llmRouter.isAvailable()) return;
+
+    try {
+      const vehicleList = recommendations
+        .map(
+          (rec, i) =>
+            `${i + 1}. ${rec.vehicle?.make} ${rec.vehicle?.model} ${rec.vehicle?.yearModel}, R$ ${rec.vehicle?.price?.toLocaleString('pt-BR')}, ${rec.vehicle?.mileage?.toLocaleString('pt-BR')} km, ${rec.vehicle?.bodyType}`,
+        )
+        .join('\n');
+
+      const { _lastShownVehicles, _showedRecommendation, ...pub } = profile;
+
+      const result = await this.llmRouter.chat(
+        [
+          {
+            role: 'system',
+            content:
+              `Você é consultor de vendas de carros. Para cada veículo, escreva UMA frase curta (máx 15 palavras) explicando por que combina com o perfil do cliente. Seja específico e honesto.\n` +
+              `Retorne APENAS JSON: {"reasons": ["frase 1", "frase 2", ...]} na mesma ordem dos veículos.`,
+          },
+          {
+            role: 'user',
+            content: `PERFIL: ${JSON.stringify(pub)}\n\nVEÍCULOS:\n${vehicleList}`,
+          },
+        ],
+        { temperature: 0.5, maxTokens: 250 },
+      );
+
+      let cleaned = result.content.trim();
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/```(?:json)?\n?/g, '');
+      }
+      const parsed = JSON.parse(cleaned) as { reasons?: string[] };
+
+      if (Array.isArray(parsed.reasons)) {
+        parsed.reasons.forEach((reason, i) => {
+          if (recommendations[i] && typeof reason === 'string' && reason) {
+            recommendations[i].reasoning = reason;
+          }
+        });
+      }
+    } catch (error) {
+      if (!(error instanceof LlmUnavailableError)) {
+        this.logger.warn(`LLM reasoning enrichment failed: ${String(error)}`);
+      }
+      // Heuristic reasoning already set - nothing to do
+    }
   }
 
   /**
@@ -414,6 +544,7 @@ export class ConversationGraphService implements OnModuleInit {
       // Prepare input - spread state first, then add new message
       const input = {
         ...session.state,
+        sessionId: threadId,
         messages: Array.isArray(session.state.messages)
           ? [...session.state.messages, new HumanMessage(message)]
           : [new HumanMessage(message)],
@@ -459,6 +590,7 @@ export class ConversationGraphService implements OnModuleInit {
         recommendations: finalState.recommendations,
         profile: finalState.profile,
         suggestedActions,
+        handoff: finalState.handoff,
       };
     } catch (error: unknown) {
       const errorMessage =
@@ -484,6 +616,10 @@ export class ConversationGraphService implements OnModuleInit {
    */
   private determineSuggestedActions(state: IGraphState): string[] {
     const actions: string[] = [];
+
+    if (state.handoff?.waLink) {
+      actions.push('OPEN_WHATSAPP');
+    }
 
     if (state.metadata.flags.includes('handoff_requested')) {
       actions.push('HANDOFF_HUMAN');
@@ -536,7 +672,7 @@ export class ConversationGraphService implements OnModuleInit {
         where: { threadId },
       });
       this.logger.log(`Session cleared: ${threadId}`);
-    } catch (e) {
+    } catch {
       // Ignore if not found
       this.logger.log(`Session not found to clear: ${threadId}`);
     }

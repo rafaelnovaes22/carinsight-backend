@@ -8,7 +8,7 @@ const logger = new Logger('DiscoveryNode');
  * Detect if user is correcting their name
  * Returns the corrected name or null if not a correction
  */
-function detectNameCorrection(
+export function detectNameCorrection(
   message: string,
   currentName?: string,
 ): string | null {
@@ -110,9 +110,10 @@ function isSimilarName(name1: string, name2: string): boolean {
 }
 
 /**
- * Extract preferences from user message using LLM-like pattern matching
+ * Extract preferences from user message using pattern matching.
+ * Used as fallback when the LLM extractor is unavailable.
  */
-function extractPreferences(
+export function extractPreferences(
   message: string,
   _currentProfile: Partial<CustomerProfile>,
 ): Partial<CustomerProfile> {
@@ -257,7 +258,7 @@ function extractPreferences(
 /**
  * Check if we have enough info to make recommendations
  */
-function canRecommend(profile: Partial<CustomerProfile>): boolean {
+export function canRecommend(profile: Partial<CustomerProfile>): boolean {
   // Need at least budget OR (bodyType + usage)
   const hasBudget = !!profile.budget;
   const hasPreferences = !!(profile.bodyType || profile.usage || profile.brand);
@@ -267,7 +268,9 @@ function canRecommend(profile: Partial<CustomerProfile>): boolean {
 /**
  * Generate clarifying question based on missing info
  */
-function generateClarifyingQuestion(profile: Partial<CustomerProfile>): string {
+export function generateClarifyingQuestion(
+  profile: Partial<CustomerProfile>,
+): string {
   const name = profile.customerName ? profile.customerName.split(' ')[0] : '';
   const greeting = name ? `${name}, ` : '';
 
@@ -362,23 +365,16 @@ export function discoveryNode(state: IGraphState): Partial<IGraphState> {
     };
   }
 
-  // Check for handoff request
+  // Check for handoff request - lead_handoff node produces the response
   if (/vendedor|humano|atendente|pessoa real/i.test(lower)) {
     logger.log('Handoff requested');
     return {
-      next: 'handoff',
+      next: 'lead_handoff',
       metadata: {
         ...state.metadata,
         lastMessageAt: Date.now(),
         flags: [...state.metadata.flags, 'handoff_requested'],
       },
-      messages: [
-        new AIMessage(
-          `Claro! Vou te transferir para um de nossos consultores. 👨‍💼\n\n` +
-            `Ele vai entrar em contato em breve pelo WhatsApp.\n\n` +
-            `_Obrigado por usar o CarInsight!_ 🚗`,
-        ),
-      ],
     };
   }
 

@@ -2,6 +2,8 @@
 
 Backend API for CarInsight - an AI-powered automotive marketplace platform, built with NestJS, Prisma, PostgreSQL, and integrated AI capabilities.
 
+> **Portfolio Sample** — This repository is public for technical evaluation purposes. See [NOTICE.md](NOTICE.md) for terms.
+
 ## 🚀 Tech Stack
 
 | Technology | Purpose |

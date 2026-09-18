@@ -1,22 +1,40 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { PrismaService } from './prisma/prisma.service';
 
-describe('AppController', () => {
-  let appController: AppController;
+describe('Application entry points', () => {
+  const query = jest.fn();
+  let controller: AppController;
 
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
+    query.mockReset();
+    const app = await Test.createTestingModule({
       controllers: [AppController],
-      providers: [AppService],
+      providers: [
+        AppService,
+        { provide: PrismaService, useValue: { $queryRaw: query } },
+      ],
     }).compile();
-
-    appController = app.get<AppController>(AppController);
+    controller = app.get(AppController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
-    });
+  it('redirects the root to the human-facing product', () => {
+    const result = controller.getHello();
+    expect(result.statusCode).toBe(302);
+    expect(new URL(result.url).protocol).toBe('https:');
+  });
+
+  it('reports health only when the database answers', async () => {
+    query.mockResolvedValue([{ result: 1 }]);
+    await expect(controller.health()).resolves.toEqual({ status: 'ok' });
+  });
+
+  it('returns unavailable without exposing database errors', async () => {
+    query.mockRejectedValue(new Error('private connection detail'));
+    await expect(controller.health()).rejects.toThrow(
+      ServiceUnavailableException,
+    );
   });
 });

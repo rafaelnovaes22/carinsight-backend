@@ -2,6 +2,24 @@
 
 Backend API for CarInsight - an AI-powered automotive marketplace platform, built with NestJS, Prisma, PostgreSQL, and integrated AI capabilities.
 
+## Verification without credentials
+
+Use Node.js 20 or newer. `npm run setup` installs the exact lockfile and runs the
+same gate as CI. Run it again safely when dependencies change. `npm run verify`
+checks lint, formatting, unit/HTTP contract tests and the production build without
+reading an environment file or connecting to a database. It does not seed or
+migrate anything. The existing database E2E suite is a separate opt-in command;
+`test/setup.ts` rejects non-local databases and names not ending in `_test`.
+
+```mermaid
+flowchart LR
+  HTTP[HTTP + validation] --> Domains[Vehicles / Users / Dealers / Interactions]
+  Domains --> Prisma[Prisma / PostgreSQL]
+  HTTP --> AI[Chat / conversation graph]
+  AI --> LLM[OpenAI / Groq router]
+  AI --> Prisma
+```
+
 > **Portfolio Sample** — This repository is public for technical evaluation purposes. See [NOTICE.md](NOTICE.md) for terms.
 
 ## 🚀 Tech Stack
@@ -17,7 +35,7 @@ Backend API for CarInsight - an AI-powered automotive marketplace platform, buil
 
 ## 📋 Prerequisites
 
-- Node.js (v18+)
+- Node.js (v20+)
 - Docker & Docker Compose (for database)
 - OpenAI API Key and/or Groq API Key (for AI features)
 

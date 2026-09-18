@@ -11,7 +11,7 @@
   "scripts": {
     "setup": "npm ci && npm run verify",
     "verify": "npm run lint && npm run format:check && npm test -- --runInBand --silent && npm run build",
-    "build": "nest build",
+    "build": "nest build && node scripts/check-build.cjs",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -58,7 +58,7 @@
     "cohere-ai": "^7.20.0",
     "dotenv": "^17.2.3",
     "groq-sdk": "^0.37.0",
-    "nodemailer": "^9.0.3",
+    "nodemailer": "^9.1.1",
     "openai": "^6.16.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -68,6 +68,9 @@
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",
     "zod": "^4.3.5"
+  },
+  "overrides": {
+    "multer": "^2.4.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

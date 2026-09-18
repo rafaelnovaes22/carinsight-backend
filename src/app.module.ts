@@ -11,6 +11,7 @@ import { DealersModule } from './dealers/dealers.module';
 import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { DecisionModule } from './decision/decision.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { CatalogModule } from './catalog/catalog.module';
     DealersModule,
     AiModule,
     CatalogModule,
+    DecisionModule,
   ],
   controllers: [AppController],
   providers: [

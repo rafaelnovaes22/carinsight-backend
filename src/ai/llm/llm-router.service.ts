@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import Groq from 'groq-sdk';
+import { LlmCallBudget, llmSettings } from './llm-settings';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -10,6 +11,8 @@ interface ChatMessage {
 interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
+  timeoutMs?: number;
+  jsonMode?: boolean;
 }
 
 interface ChatResponse {
@@ -44,6 +47,8 @@ export class LlmRouterService {
   private openai: OpenAI | null = null;
   private groq: Groq | null = null;
   private circuitBreakers: Map<string, CircuitBreaker> = new Map();
+  private readonly settings = llmSettings();
+  private readonly budget = new LlmCallBudget(this.settings.dailyCallLimit);
 
   private readonly CIRCUIT_BREAKER_THRESHOLD = 3;
   private readonly CIRCUIT_BREAKER_TIMEOUT_MS = 60000; // 1 minute
@@ -54,7 +59,11 @@ export class LlmRouterService {
 
   private initializeProviders(): void {
     if (process.env.OPENAI_API_KEY) {
-      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        maxRetries: 0,
+        timeout: 5000,
+      });
       this.circuitBreakers.set('openai', {
         failures: 0,
         lastFailure: null,
@@ -64,7 +73,11 @@ export class LlmRouterService {
     }
 
     if (process.env.GROQ_API_KEY) {
-      this.groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+      this.groq = new Groq({
+        apiKey: process.env.GROQ_API_KEY,
+        maxRetries: 0,
+        timeout: 5000,
+      });
       this.circuitBreakers.set('groq', {
         failures: 0,
         lastFailure: null,
@@ -118,14 +131,26 @@ export class LlmRouterService {
     const { temperature = 0.7, maxTokens = 1024 } = options;
 
     // Try OpenAI first
-    if (this.openai && !this.isCircuitOpen('openai')) {
+    if (this.openai && !this.isCircuitOpen('openai') && this.budget.reserve()) {
       try {
-        const response = await this.openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-        });
+        const response = await this.openai.chat.completions.create(
+          {
+            model: this.settings.openaiModel,
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+            response_format: options.jsonMode
+              ? { type: 'json_object' }
+              : undefined,
+          },
+          options.timeoutMs
+            ? { timeout: options.timeoutMs, maxRetries: 0 }
+            : undefined,
+        );
+        if (response.choices[0]?.finish_reason === 'length')
+          throw new LlmUnavailableError(
+            'OpenAI retornou uma conclusão truncada',
+          );
 
         this.recordSuccess('openai');
 
@@ -137,23 +162,34 @@ export class LlmRouterService {
             completionTokens: response.usage?.completion_tokens || 0,
           },
         };
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        this.logger.warn(`OpenAI failed: ${errorMessage}`);
+      } catch {
+        this.logger.warn({ event: 'llm.provider.failed', provider: 'openai' });
         this.recordFailure('openai');
       }
     }
 
     // Fallback to Groq
-    if (this.groq && !this.isCircuitOpen('groq')) {
+    if (this.groq && !this.isCircuitOpen('groq') && this.budget.reserve()) {
       try {
-        const response = await this.groq.chat.completions.create({
-          model: 'llama-3.1-8b-instant',
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-        });
+        const response = await this.groq.chat.completions.create(
+          {
+            model: this.settings.groqModel,
+            messages,
+            temperature,
+            max_completion_tokens: maxTokens,
+            response_format: options.jsonMode
+              ? { type: 'json_object' }
+              : undefined,
+            ...(this.settings.groqModel.startsWith('openai/gpt-oss-')
+              ? { reasoning_effort: 'low' as const, include_reasoning: false }
+              : {}),
+          },
+          options.timeoutMs
+            ? { timeout: options.timeoutMs, maxRetries: 0 }
+            : undefined,
+        );
+        if (response.choices[0]?.finish_reason === 'length')
+          throw new LlmUnavailableError('Groq retornou uma conclusão truncada');
 
         this.recordSuccess('groq');
 
@@ -165,10 +201,8 @@ export class LlmRouterService {
             completionTokens: response.usage?.completion_tokens || 0,
           },
         };
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        this.logger.warn(`Groq failed: ${errorMessage}`);
+      } catch {
+        this.logger.warn({ event: 'llm.provider.failed', provider: 'groq' });
         this.recordFailure('groq');
       }
     }
@@ -188,6 +222,7 @@ export class LlmRouterService {
   }
 
   isAvailable(): boolean {
+    if (!this.budget.hasRemaining()) return false;
     return (
       (this.openai !== null && !this.isCircuitOpen('openai')) ||
       (this.groq !== null && !this.isCircuitOpen('groq'))

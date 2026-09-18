@@ -10,6 +10,7 @@ import { InteractionsModule } from './interactions/interactions.module';
 import { DealersModule } from './dealers/dealers.module';
 import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
+import { CatalogModule } from './catalog/catalog.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AuthModule } from './auth/auth.module';
     InteractionsModule,
     DealersModule,
     AiModule,
+    CatalogModule,
   ],
   controllers: [AppController],
   providers: [

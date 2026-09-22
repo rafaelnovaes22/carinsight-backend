@@ -43,6 +43,12 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Secrets must never be committed (see jwt-secrets incident, Sep 2026)
+*secret*
+*.key
+*.pem
+secrets*.json
+
 # temp directory
 .temp
 .tmp

@@ -4,6 +4,7 @@ import { LeadService } from '../lead.service';
 import { LeadNotificationService } from '../lead-notification.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { IGraphState } from '../../graph/types/graph-state.types';
+import { createEmptyTaste } from '../../taste/taste-profile';
 
 describe('LeadService', () => {
   let service: LeadService;
@@ -41,6 +42,7 @@ describe('LeadService', () => {
       },
     ],
     next: 'lead_handoff',
+    taste: createEmptyTaste(),
     metadata: {
       startedAt: Date.now(),
       lastMessageAt: Date.now(),

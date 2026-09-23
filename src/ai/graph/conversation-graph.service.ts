@@ -27,6 +27,20 @@ import {
   createLlmDiscoveryNode,
   createLlmNegotiationNode,
 } from './nodes';
+import {
+  TasteProfile,
+  TasteVehicleAttributes,
+  blendTasteRanking,
+  createEmptyTaste,
+  neutralTasteAttributes,
+  recordTasteExposures,
+  tasteStrength,
+} from '../taste/taste-profile';
+import {
+  learnTasteFromSession,
+  numberArrayOf,
+  stringRecordOf,
+} from '../taste/taste-learning';
 
 interface VehicleSearchResult {
   id: string;
@@ -138,11 +152,23 @@ export class ConversationGraphService implements OnModuleInit {
         // Deterministic re-rank on top of the semantic score
         searchResults = this.rankVehicles(searchResults, state.profile);
 
+        // Taste learning: revealed preference from session flags blends
+        // into the ranking. Guarded so any taste failure degrades to the
+        // legacy order instead of breaking the conversation.
+        let taste = state.taste ?? createEmptyTaste();
+        try {
+          taste = await this.learnSessionTaste(taste, state.metadata.flags);
+          searchResults = await this.applyTasteRanking(searchResults, taste);
+        } catch (error) {
+          this.logger.warn(`Taste ranking skipped: ${String(error)}`);
+        }
+
         if (searchResults.length === 0) {
           this.logger.log('No vehicles found matching criteria');
           return {
             next: 'recommendation',
             recommendations: [],
+            taste,
             metadata: {
               ...state.metadata,
               lastMessageAt: Date.now(),
@@ -190,9 +216,20 @@ export class ConversationGraphService implements OnModuleInit {
           price: rec.vehicle?.price || 0,
         }));
 
+        // Exposure log: what was actually shown, in order, feeds the
+        // skip signal on the next search round. Bounded ring, session-only.
+        const exposedTaste = recordTasteExposures(
+          taste,
+          recommendations.slice(0, 3).map((rec) => ({
+            vehicleId: rec.vehicleId,
+            score: rec.matchScore / 100,
+          })),
+        );
+
         return {
           next: 'recommendation',
           recommendations: recommendations.slice(0, 3),
+          taste: exposedTaste,
           profile: {
             ...state.profile,
             _lastShownVehicles: lastShownVehicles,
@@ -217,6 +254,95 @@ export class ConversationGraphService implements OnModuleInit {
         };
       }
     };
+  }
+
+  /**
+   * Advances session taste from conversation flags. Never throws: any
+   * failure returns the previous taste, degrading to legacy ranking.
+   */
+  private async learnSessionTaste(
+    taste: TasteProfile,
+    flags: string[],
+  ): Promise<TasteProfile> {
+    try {
+      return await learnTasteFromSession(taste, flags, (ids) =>
+        this.lookupTasteVehicles(ids),
+      );
+    } catch (error) {
+      this.logger.warn(`Taste learning skipped: ${String(error)}`);
+      return taste;
+    }
+  }
+
+  private async lookupTasteVehicles(
+    vehicleIds: string[],
+  ): Promise<TasteVehicleAttributes[]> {
+    if (vehicleIds.length === 0) return [];
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { id: { in: vehicleIds } },
+      select: {
+        id: true,
+        embedding: true,
+        bodyType: true,
+        make: true,
+        price: true,
+        technicalSpecs: true,
+      },
+    });
+    return vehicles.map((vehicle) => this.toTasteAttributes(vehicle));
+  }
+
+  private toTasteAttributes(vehicle: {
+    id: string;
+    embedding: Prisma.JsonValue | null;
+    bodyType: string;
+    make: string;
+    price: Prisma.Decimal | number;
+    technicalSpecs: Prisma.JsonValue | null;
+  }): TasteVehicleAttributes {
+    const specs = stringRecordOf(vehicle.technicalSpecs);
+    return {
+      vehicleId: vehicle.id,
+      embedding: numberArrayOf(vehicle.embedding),
+      bodyType: vehicle.bodyType ?? '',
+      brand: vehicle.make ?? '',
+      fuelType: specs['fuel'] || specs['fuelType'] || '',
+      transmission: specs['transmission'] || '',
+      price: Number(vehicle.price) || 0,
+    };
+  }
+
+  /**
+   * Blends learned taste into the ranked candidates. Cold sessions
+   * (zero engagements) return the input order untouched: byte-identical
+   * legacy behavior with zero extra queries.
+   */
+  private async applyTasteRanking(
+    results: VehicleSearchResult[],
+    taste: TasteProfile,
+  ): Promise<VehicleSearchResult[]> {
+    if (results.length === 0 || tasteStrength(taste) <= 0) return results;
+    const catalog = new Map(
+      (await this.lookupTasteVehicles(results.map((result) => result.id))).map(
+        (attrs) => [attrs.vehicleId, attrs],
+      ),
+    );
+    const blended = blendTasteRanking(
+      results.map((result) => ({
+        vehicleId: result.id,
+        baseScore: result.score,
+      })),
+      taste,
+      (vehicleId) =>
+        catalog.get(vehicleId) ?? neutralTasteAttributes(vehicleId),
+    );
+    const byId = new Map(results.map((result) => [result.id, result]));
+    const ordered: VehicleSearchResult[] = [];
+    for (const item of blended) {
+      const original = byId.get(item.vehicleId);
+      if (original) ordered.push({ ...original, score: item.finalScore });
+    }
+    return ordered;
   }
 
   /**

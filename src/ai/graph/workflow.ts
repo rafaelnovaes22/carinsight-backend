@@ -7,6 +7,7 @@ import {
   HandoffPayload,
   GraphMetadata,
 } from './types/graph-state.types';
+import { TasteProfile, createEmptyTaste } from '../taste/taste-profile';
 import {
   greetingNode,
   discoveryNode,
@@ -46,6 +47,10 @@ const GraphState = Annotation.Root({
   recommendations: Annotation<VehicleRecommendation[]>({
     reducer: (_x, y) => (y !== undefined ? y : _x),
     default: () => [],
+  }),
+  taste: Annotation<TasteProfile>({
+    reducer: (_x, y) => (y !== undefined ? y : _x),
+    default: () => createEmptyTaste(),
   }),
   next: Annotation<GraphNode>({
     reducer: (_x, y) => y,

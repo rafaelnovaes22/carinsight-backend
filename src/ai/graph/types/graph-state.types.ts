@@ -1,4 +1,5 @@
 import { BaseMessage } from '@langchain/core/messages';
+import { TasteProfile, createEmptyTaste } from '../../taste/taste-profile';
 
 /**
  * Customer profile extracted from conversation
@@ -119,6 +120,7 @@ export interface IGraphState {
   userId?: string;
   profile: Partial<CustomerProfile>;
   recommendations: VehicleRecommendation[];
+  taste: TasteProfile;
   next: GraphNode;
   metadata: GraphMetadata;
   handoff?: HandoffPayload;
@@ -148,6 +150,7 @@ export function createInitialState(): IGraphState {
     phoneNumber: '',
     profile: {},
     recommendations: [],
+    taste: createEmptyTaste(),
     next: 'greeting',
     metadata: {
       startedAt: Date.now(),

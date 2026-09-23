@@ -13,6 +13,26 @@ describe('ConversationGraphService', () => {
   let service: ConversationGraphService;
   let vectorSearchService: jest.Mocked<VectorSearchService>;
   let leadService: { createLeadFromState: jest.Mock };
+  let prismaVehicleFindMany: jest.Mock;
+
+  const tasteRows: Record<string, any> = {
+    'vehicle-A': {
+      id: 'vehicle-A',
+      embedding: [1, 0],
+      bodyType: 'Sedan',
+      make: 'Toyota',
+      price: 95000,
+      technicalSpecs: { fuel: 'Flex', transmission: 'Automatico' },
+    },
+    'vehicle-B': {
+      id: 'vehicle-B',
+      embedding: [0, 1],
+      bodyType: 'SUV',
+      make: 'Honda',
+      price: 90000,
+      technicalSpecs: { fuel: 'Diesel', transmission: 'Manual' },
+    },
+  };
 
   // Define mockVehicles here to be accessible by mockVectorSearch
   const mockVehicles = [
@@ -42,6 +62,10 @@ describe('ConversationGraphService', () => {
   beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
+
+    prismaVehicleFindMany = jest
+      .fn()
+      .mockImplementation(() => Promise.resolve([]));
 
     const mockVectorSearch = {
       searchSemantic: jest.fn().mockResolvedValue(mockVehicles),
@@ -90,6 +114,9 @@ describe('ConversationGraphService', () => {
         count: jest.fn().mockImplementation(() => {
           return Promise.resolve(mockDb.size);
         }),
+      },
+      vehicle: {
+        findMany: prismaVehicleFindMany,
       },
     };
 
@@ -214,6 +241,62 @@ describe('ConversationGraphService', () => {
       );
 
       expect(vectorSearchService.searchSemantic).toHaveBeenCalled();
+    });
+
+    it('should promote tasted vehicles above higher semantic scores', async () => {
+      const sedanA = {
+        id: 'vehicle-A',
+        make: 'Toyota',
+        model: 'Corolla',
+        yearModel: 2022,
+        price: 95000,
+        mileage: 30000,
+        bodyType: 'Sedan',
+        condition: 'USED',
+        aiTags: [],
+        score: 0.8,
+      };
+      const suvB = {
+        id: 'vehicle-B',
+        make: 'Honda',
+        model: 'CR-V',
+        yearModel: 2021,
+        price: 90000,
+        mileage: 40000,
+        bodyType: 'SUV',
+        condition: 'USED',
+        aiTags: [],
+        score: 0.84,
+      };
+      vectorSearchService.searchSemantic.mockResolvedValue([suvB, sedanA]);
+      prismaVehicleFindMany.mockImplementation(({ where }) =>
+        Promise.resolve(
+          (where?.id?.in ?? [])
+            .map((id: string) => tasteRows[id])
+            .filter((row: unknown) => row !== undefined),
+        ),
+      );
+
+      await service.processMessage('taste-thread', 'Oi, sou Lia');
+      const round1 = await service.processMessage(
+        'taste-thread',
+        'Quero um carro até 100 mil',
+      );
+      // Cold: semantic order wins, SUV first.
+      expect(round1.recommendations?.[0]?.vehicleId).toBe('vehicle-B');
+
+      // View the sedan (position 2) then ask for more options.
+      await service.processMessage('taste-thread', '2');
+      await service.processMessage('taste-thread', 'mais opções');
+      const round2 = await service.processMessage(
+        'taste-thread',
+        'pode buscar',
+      );
+
+      // Learned taste promotes the viewed sedan above the SUV.
+      expect(round2.recommendations?.[0]?.vehicleId).toBe('vehicle-A');
+      const session = await service.getSession('taste-thread');
+      expect(session?.state.taste.engagements).toBeGreaterThan(0);
     });
 
     it('should create lead and return wa.me handoff on vendor request', async () => {

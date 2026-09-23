@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -5,7 +6,6 @@ import {
   ConversationSession,
 } from '../graph/conversation-graph.service';
 import { VectorSearchService } from '../vector/vector-search.service';
-import { v4 as uuidv4 } from 'uuid';
 
 interface StartChatDto {
   vehicleId?: string;
@@ -71,7 +71,7 @@ export class ChatService {
       price: number;
     };
   }> {
-    const sessionId = uuidv4();
+    const sessionId = randomUUID();
     this.logger.log(`Starting chat session: ${sessionId}`);
 
     let vehicleContext = '';

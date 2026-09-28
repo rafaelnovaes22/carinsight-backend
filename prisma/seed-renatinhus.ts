@@ -49,7 +49,8 @@ const vehiclesData = [
     mileage: 252390,
     fuel: 'Gasolina',
     transmission: 'Manual',
-    imageUrl: 'https://via.placeholder.com/640x480.png?text=Sem+Foto',
+    imageUrl:
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/2009_Chevrolet_Corsa_1.8_GL_sedan.jpg/960px-2009_Chevrolet_Corsa_1.8_GL_sedan.jpg',
     make: 'CHEVROLET',
     model: 'CORSA 1.8',
     year: 2003,
@@ -87,7 +88,8 @@ const vehiclesData = [
     mileage: 170794,
     fuel: 'Flex',
     transmission: 'Automático',
-    imageUrl: 'https://via.placeholder.com/640x480.png?text=Sem+Foto',
+    imageUrl:
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Chevrolet_Spin_Activ_2017.jpg/960px-Chevrolet_Spin_Activ_2017.jpg',
     make: 'CHEVROLET',
     model: 'SPIN 1.8',
     year: 2017,
@@ -151,7 +153,8 @@ const vehiclesData = [
     mileage: 27220,
     fuel: 'Gasolina',
     transmission: 'Manual',
-    imageUrl: 'https://via.placeholder.com/640x480.png?text=Sem+Foto',
+    imageUrl:
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Harley-Davidson_V-Rod_black_DSCF0397.jpg/960px-Harley-Davidson_V-Rod_black_DSCF0397.jpg',
     make: 'HARLEY-DAVIDSON',
     model: 'V-ROD ',
     year: 2013,
@@ -202,7 +205,8 @@ const vehiclesData = [
     mileage: 178448,
     fuel: 'Flex',
     transmission: 'Manual',
-    imageUrl: 'https://via.placeholder.com/640x480.png?text=Sem+Foto',
+    imageUrl:
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6f/Honda_Jazz_%28first_generation%29_%28front%29%2C_Serdang.jpg/960px-Honda_Jazz_%28first_generation%29_%28front%29%2C_Serdang.jpg',
     make: 'HONDA',
     model: 'FIT 1.4',
     year: 2008,
@@ -253,7 +257,8 @@ const vehiclesData = [
     mileage: 109314,
     fuel: 'Gasolina',
     transmission: 'Automatizado',
-    imageUrl: 'https://via.placeholder.com/640x480.png?text=Sem+Foto',
+    imageUrl:
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Hyundai_i30_GLS_2012.jpg/960px-Hyundai_i30_GLS_2012.jpg',
     make: 'HYUNDAI',
     model: 'I30 2.0',
     year: 2012,
@@ -304,7 +309,8 @@ const vehiclesData = [
     mileage: 145600,
     fuel: 'Flex',
     transmission: 'Manual',
-    imageUrl: 'https://via.placeholder.com/640x480.png?text=Sem+Foto',
+    imageUrl:
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Renault-Sandero-2013.jpg/960px-Renault-Sandero-2013.jpg',
     make: 'RENAULT',
     model: 'SANDERO 1.0',
     year: 2013,

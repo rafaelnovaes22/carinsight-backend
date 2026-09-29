@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { jwtSecret } from './jwt-secrets';
 
 export interface JwtPayload {
   sub: string;
@@ -42,7 +43,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
-    this.logger.log(`Registering user: ${dto.email}`);
+    this.logger.log({ event: 'auth.registration.requested' });
 
     // Check if email already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -85,7 +86,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<AuthResponse> {
-    this.logger.log(`Login attempt: ${dto.email}`);
+    this.logger.log({ event: 'auth.login.requested' });
 
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -124,7 +125,7 @@ export class AuthService {
   async refreshTokens(refreshToken: string): Promise<AuthTokens> {
     try {
       const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret',
+        secret: jwtSecret('JWT_REFRESH_SECRET'),
       });
 
       const user = await this.prisma.user.findUnique({
@@ -185,11 +186,11 @@ export class AuthService {
   private async generateTokens(payload: JwtPayload): Promise<AuthTokens> {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
+        secret: jwtSecret('JWT_SECRET'),
         expiresIn: '15m',
       }),
       this.jwtService.signAsync(payload, {
-        secret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret',
+        secret: jwtSecret('JWT_REFRESH_SECRET'),
         expiresIn: this.REFRESH_TOKEN_EXPIRY,
       }),
     ]);

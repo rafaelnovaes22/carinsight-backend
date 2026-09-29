@@ -4,13 +4,13 @@ import { join } from 'path';
 // Carregar variáveis de ambiente de teste
 config({ path: join(__dirname, '..', '.env.test') });
 
-// Configurações globais de teste
-beforeAll(() => {
-  console.log('🚀 Iniciando testes E2E...');
-  console.log(`📦 Database: ${process.env.DATABASE_URL}`);
-  console.log(`🔴 Redis: ${process.env.REDIS_URL}`);
-});
-
-afterAll(() => {
-  console.log('✅ Testes E2E finalizados');
-});
+// Estes testes apagam fixtures. Recusar qualquer banco que não seja isolado e local.
+const testDatabase = new URL(
+  process.env.DATABASE_URL ?? 'postgresql://invalid',
+);
+if (
+  !['127.0.0.1', 'localhost'].includes(testDatabase.hostname) ||
+  !testDatabase.pathname.endsWith('_test')
+) {
+  throw new Error('E2E exige PostgreSQL local com nome terminado em _test');
+}

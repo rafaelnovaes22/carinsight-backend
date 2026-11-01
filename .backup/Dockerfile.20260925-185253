@@ -1,0 +1,49 @@
+# Multi-stage build for carinsight-backend (NestJS)
+# Otimizado para Windows Server 2025: baixa RAM, sem elevação, non-root
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Dependências primeiro (cache de camada)
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+RUN npm ci
+
+# Gera o client Prisma antes do build
+RUN npx prisma generate
+
+# Build da aplicação
+COPY . .
+RUN npm run build
+
+# Runtime stage
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Non-root user
+RUN adduser -D -u 10000 appuser
+
+# Apenas deps de produção + prisma CLI para migrations
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm i --no-save prisma
+
+# Client Prisma gerado na stage de build
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Artefatos de build e migrations
+COPY --from=builder /app/dist ./dist
+COPY prisma ./prisma
+
+# Railway injeta PORT em runtime. Fallback 3000 para docker run local.
+EXPOSE 3000
+
+USER appuser
+
+# Healthcheck leve
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+# Migrations NÃO rodam aqui (conflito de lock com múltiplas réplicas).
+# Rodar separadamente via preDeployCommand ou npm run db:migrate.
+CMD ["node", "dist/src/main.js"]

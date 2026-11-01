@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+#
+# bin/setup: setup idempotente do ambiente de desenvolvimento.
+# Pode rodar quantas vezes quiser, do zero ou repetido, sem quebrar.
+#
+# Uso: bash bin/setup
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+say() { printf '%s\n' "$*"; }
+warn() { printf 'AVISO: %s\n' "$*" >&2; }
+has_script() {
+  node --input-type=module -e "import {readFileSync} from 'node:fs'; const pkg = JSON.parse(readFileSync('package.json', 'utf8')); const name = process.argv[1]; process.exit(pkg.scripts && pkg.scripts[name] ? 0 : 1);" "$1" 2>/dev/null
+}
+
+say "==> checando Node.js..."
+if ! command -v node >/dev/null 2>&1; then
+  echo "ERRO: Node.js nao encontrado. Instale Node >= 20 e rode de novo." >&2
+  exit 1
+fi
+node -e "const major = Number(process.versions.node.split('.')[0]); if (major < 20) { console.error('ERRO: Node >= 20 exigido, encontrado ' + process.version); process.exit(1); }"
+
+say "==> instalando dependencias (npm ci, fallback npm install)..."
+if [ -f package-lock.json ]; then
+  if ! npm ci; then
+    warn "npm ci falhou, tentando npm install..."
+    npm install
+  fi
+else
+  npm install
+fi
+
+say "==> configurando .env..."
+if [ -f .env ]; then
+  say ".env ja existe, mantido."
+elif [ -f .env.example ]; then
+  cp .env.example .env
+  say ".env criado a partir de .env.example. Ajuste DATABASE_URL e as chaves (OpenAI/Groq) antes de rodar."
+else
+  warn ".env.example nao encontrado, pulando."
+fi
+
+say "==> banco de dados (so roda o que existir no package.json)..."
+if has_script "db:generate"; then
+  npm run db:generate
+fi
+if has_script "db:push"; then
+  if ! npm run db:push; then
+    warn "db:push falhou (banco fora do ar?). Suba com docker-compose up -d e rode bash bin/setup de novo."
+  fi
+elif has_script "db:migrate"; then
+  if ! npm run db:migrate; then
+    warn "db:migrate falhou (banco fora do ar?). Suba com docker-compose up -d e rode bash bin/setup de novo."
+  fi
+fi
+if has_script "db:seed"; then
+  if ! npm run db:seed; then
+    warn "db:seed falhou ou e opcional. Rode manual com npm run db:seed (veja o README)."
+  fi
+fi
+
+say ""
+say "Setup concluido. Proximo passo:"
+say "  docker-compose up -d && npm run start:dev   (seed opcional: npm run db:seed | testes: npm test)"

@@ -1,0 +1,163 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { EmbeddingService } from '../embeddings/embedding.service';
+import { PrismaService } from '../../prisma/prisma.service';
+
+describe('EmbeddingService', () => {
+  let service: EmbeddingService;
+  let mockPrismaService: {
+    vehicle: {
+      findUnique: jest.Mock;
+      findMany: jest.Mock;
+      update: jest.Mock;
+    };
+  };
+
+  beforeEach(async () => {
+    mockPrismaService = {
+      vehicle: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EmbeddingService,
+        { provide: PrismaService, useValue: mockPrismaService },
+      ],
+    }).compile();
+
+    service = module.get<EmbeddingService>(EmbeddingService);
+  });
+
+  describe('generateVehicleEmbeddingText', () => {
+    it('should generate embedding text for a vehicle', () => {
+      const vehicle = {
+        make: 'Toyota',
+        model: 'Corolla',
+        yearModel: 2023,
+        bodyType: 'Sedan',
+        price: 150000,
+        mileage: 15000,
+        condition: 'USED',
+        features: ['Ar condicionado', 'Direção elétrica'],
+        aiTags: ['Seminovo', 'Baixa Quilometragem'],
+        technicalSpecs: {
+          engine: '2.0 Flex',
+          transmission: 'Automático',
+          fuel: 'Flex',
+        },
+      };
+
+      const text = service.generateVehicleEmbeddingText(vehicle);
+
+      expect(text).toContain('Toyota Corolla 2023');
+      expect(text).toContain('Sedan');
+      expect(text).toContain('Seminovo');
+      // Check for mileage (locale-agnostic - could be 15.000 or 15,000)
+      expect(text).toMatch(/15[.,]000 km/);
+      expect(text).toContain('Automático');
+      expect(text).toContain('Ar condicionado');
+    });
+
+    it('should handle vehicle with minimal data', () => {
+      const vehicle = {
+        make: 'Honda',
+        model: 'Civic',
+        yearModel: 2020,
+        bodyType: 'Sedan',
+        price: 100000,
+        mileage: 50000,
+        condition: 'USED',
+        features: [],
+        aiTags: [],
+      };
+
+      const text = service.generateVehicleEmbeddingText(vehicle);
+
+      expect(text).toContain('Honda Civic 2020');
+      expect(text).not.toContain('Opcionais:');
+    });
+  });
+
+  describe('cosineSimilarity', () => {
+    it('should return 1 for identical vectors', () => {
+      const vector = [0.1, 0.2, 0.3, 0.4];
+      const similarity = service.cosineSimilarity(vector, vector);
+      expect(similarity).toBeCloseTo(1, 5);
+    });
+
+    it('should return 0 for orthogonal vectors', () => {
+      const a = [1, 0, 0];
+      const b = [0, 1, 0];
+      const similarity = service.cosineSimilarity(a, b);
+      expect(similarity).toBeCloseTo(0, 5);
+    });
+
+    it('should return -1 for opposite vectors', () => {
+      const a = [1, 0, 0];
+      const b = [-1, 0, 0];
+      const similarity = service.cosineSimilarity(a, b);
+      expect(similarity).toBeCloseTo(-1, 5);
+    });
+
+    it('should return 0 for vectors of different lengths', () => {
+      const a = [1, 2, 3];
+      const b = [1, 2];
+      const similarity = service.cosineSimilarity(a, b);
+      expect(similarity).toBe(0);
+    });
+
+    it('should handle zero vectors', () => {
+      const a = [0, 0, 0];
+      const b = [1, 2, 3];
+      const similarity = service.cosineSimilarity(a, b);
+      expect(similarity).toBe(0);
+    });
+  });
+
+  describe('isAvailable', () => {
+    it('should return false when OpenAI is not configured', async () => {
+      // Must not depend on the ambient environment: force the key out,
+      // build a fresh service, and restore the env afterwards.
+      const previous = process.env.OPENAI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+      try {
+        const module: TestingModule = await Test.createTestingModule({
+          providers: [
+            EmbeddingService,
+            { provide: PrismaService, useValue: mockPrismaService },
+          ],
+        }).compile();
+        const isolated = module.get<EmbeddingService>(EmbeddingService);
+        expect(isolated.isAvailable()).toBe(false);
+      } finally {
+        if (previous !== undefined) {
+          process.env.OPENAI_API_KEY = previous;
+        }
+      }
+    });
+
+    it('should return true when OpenAI is configured', async () => {
+      const previous = process.env.OPENAI_API_KEY;
+      process.env.OPENAI_API_KEY = 'test-key';
+      try {
+        const module: TestingModule = await Test.createTestingModule({
+          providers: [
+            EmbeddingService,
+            { provide: PrismaService, useValue: mockPrismaService },
+          ],
+        }).compile();
+        const isolated = module.get<EmbeddingService>(EmbeddingService);
+        expect(isolated.isAvailable()).toBe(true);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.OPENAI_API_KEY;
+        } else {
+          process.env.OPENAI_API_KEY = previous;
+        }
+      }
+    });
+  });
+});

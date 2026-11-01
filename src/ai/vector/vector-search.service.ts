@@ -1,0 +1,536 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { EmbeddingService } from '../embeddings/embedding.service';
+import { Prisma } from '@prisma/client';
+
+export interface VehicleSearchResult {
+  id: string;
+  make: string;
+  model: string;
+  yearModel: number;
+  price: number;
+  mileage: number;
+  bodyType: string;
+  condition: string;
+  aiTags: string[];
+  score: number;
+  dealer?: {
+    name: string;
+    verificationStatus: string;
+  };
+  media?: {
+    url: string;
+    type: string;
+  }[];
+}
+
+export interface SearchFilters {
+  priceMin?: number;
+  priceMax?: number;
+  yearMin?: number;
+  yearMax?: number;
+  make?: string;
+  bodyType?: string;
+  condition?: 'NEW' | 'USED';
+}
+
+@Injectable()
+export class VectorSearchService {
+  private readonly logger = new Logger(VectorSearchService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private embeddingService: EmbeddingService,
+  ) {}
+
+  /**
+   * Semantic search for vehicles using embeddings
+   */
+  async searchSemantic(
+    query: string,
+    limit: number = 10,
+    filters?: SearchFilters,
+  ): Promise<VehicleSearchResult[]> {
+    this.logger.log(`Semantic search: "${query}" with limit ${limit}`);
+
+    // Generate query embedding
+    const queryEmbedding = await this.embeddingService.generateEmbedding(query);
+
+    if (!queryEmbedding) {
+      this.logger.warn(
+        'Could not generate query embedding, falling back to text search',
+      );
+      return this.fallbackTextSearch(query, limit, filters);
+    }
+
+    try {
+      // 1. Try native pgvector
+      return await this.searchWithPgVector(queryEmbedding, limit, filters);
+    } catch (error) {
+      this.logger.warn(
+        'pgvector query failed or not available locally. Falling back to in-memory search.',
+        error,
+      );
+      // 2. Fallback to in-memory
+      return this.searchSemanticInMemory(queryEmbedding, limit, filters);
+    }
+  }
+
+  private async searchSemanticInMemory(
+    queryEmbedding: number[],
+    limit: number,
+    filters?: SearchFilters,
+  ): Promise<VehicleSearchResult[]> {
+    // Get vehicles with embeddings
+    const whereClause = this.buildWhereClause(filters);
+
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: {
+        ...whereClause,
+        status: 'AVAILABLE',
+        embedding: { not: Prisma.DbNull },
+      },
+      include: {
+        dealer: {
+          select: { name: true, verificationStatus: true },
+        },
+        media: {
+          take: 3,
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (vehicles.length === 0) {
+      return [];
+    }
+
+    // Calculate similarity scores
+    const scoredVehicles = vehicles
+      .map((vehicle) => {
+        const vehicleEmbedding = vehicle.embedding as number[];
+        const score = this.embeddingService.cosineSimilarity(
+          queryEmbedding,
+          vehicleEmbedding,
+        );
+
+        return {
+          id: vehicle.id,
+          make: vehicle.make,
+          model: vehicle.model,
+          yearModel: vehicle.yearModel,
+          price: Number(vehicle.price),
+          mileage: vehicle.mileage,
+          bodyType: vehicle.bodyType,
+          condition: vehicle.condition,
+          aiTags: vehicle.aiTags,
+          score,
+          dealer: vehicle.dealer,
+          media: vehicle.media,
+        };
+      })
+      .filter((v) => v.score > 0.3) // Minimum relevance threshold
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    this.logger.log(
+      `Found ${scoredVehicles.length} relevant vehicles (in-memory)`,
+    );
+    return scoredVehicles;
+  }
+
+  private async searchWithPgVector(
+    queryEmbedding: number[],
+    limit: number,
+    filters?: SearchFilters,
+  ): Promise<VehicleSearchResult[]> {
+    const embeddingStr = JSON.stringify(queryEmbedding);
+
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`status = 'AVAILABLE'`,
+      Prisma.sql`embedding IS NOT NULL`,
+    ];
+
+    if (filters?.priceMin)
+      conditions.push(Prisma.sql`price >= ${filters.priceMin}`);
+    if (filters?.priceMax)
+      conditions.push(Prisma.sql`price <= ${filters.priceMax}`);
+    if (filters?.yearMin)
+      conditions.push(Prisma.sql`"yearModel" >= ${filters.yearMin}`);
+    if (filters?.yearMax)
+      conditions.push(Prisma.sql`"yearModel" <= ${filters.yearMax}`);
+    if (filters?.make) conditions.push(Prisma.sql`make ILIKE ${filters.make}`);
+    if (filters?.bodyType)
+      conditions.push(Prisma.sql`"bodyType" ILIKE ${filters.bodyType}`);
+    // cast condition enum to text
+    if (filters?.condition)
+      conditions.push(Prisma.sql`condition::text = ${filters.condition}`);
+
+    const joinedWhereClause = Prisma.join(conditions, ' AND ');
+
+    // using <-> for euler distance or <=> for cosine distance
+    const query = Prisma.sql`
+      SELECT 
+        id, 
+        1 - (embedding::text::vector <=> ${embeddingStr}::vector) AS score
+      FROM "Vehicle"
+      WHERE ${joinedWhereClause}
+      ORDER BY embedding::text::vector <=> ${embeddingStr}::vector
+      LIMIT ${limit};
+    `;
+
+    const rawResults =
+      await this.prisma.$queryRaw<{ id: string; score: number }[]>(query);
+
+    if (rawResults.length === 0) return [];
+
+    const ids = rawResults.map((r) => r.id);
+
+    // Fetch full vehicles
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { id: { in: ids } },
+      include: {
+        dealer: {
+          select: { name: true, verificationStatus: true },
+        },
+        media: {
+          take: 3,
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    // Re-order and map
+    return rawResults
+      .map((raw) => {
+        const vehicle = vehicles.find((v) => v.id === raw.id);
+        if (!vehicle) return null;
+
+        return {
+          id: vehicle.id,
+          make: vehicle.make,
+          model: vehicle.model,
+          yearModel: vehicle.yearModel,
+          price: Number(vehicle.price),
+          mileage: vehicle.mileage,
+          bodyType: vehicle.bodyType,
+          condition: vehicle.condition,
+          aiTags: vehicle.aiTags,
+          score: raw.score,
+          dealer: vehicle.dealer,
+          media: vehicle.media,
+        };
+      })
+      .filter((v) => v !== null) as VehicleSearchResult[];
+  }
+
+  /**
+   * Find similar vehicles to a given vehicle
+   */
+  async findSimilar(
+    vehicleId: string,
+    limit: number = 5,
+  ): Promise<VehicleSearchResult[]> {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
+
+    if (!vehicle || !vehicle.embedding) {
+      this.logger.warn(`Vehicle ${vehicleId} not found or has no embedding`);
+      return [];
+    }
+
+    const sourceEmbedding = vehicle.embedding as number[];
+
+    try {
+      return await this.findSimilarWithPgVector(
+        vehicleId,
+        sourceEmbedding,
+        limit,
+      );
+    } catch {
+      this.logger.warn(
+        'pgvector query failed for findSimilar. Falling back to in-memory search.',
+      );
+      return this.findSimilarInMemory(vehicleId, sourceEmbedding, limit);
+    }
+  }
+
+  private async findSimilarInMemory(
+    vehicleId: string,
+    sourceEmbedding: number[],
+    limit: number = 5,
+  ): Promise<VehicleSearchResult[]> {
+    const candidates = await this.prisma.vehicle.findMany({
+      where: {
+        id: { not: vehicleId },
+        status: 'AVAILABLE',
+        embedding: { not: Prisma.DbNull },
+      },
+      include: {
+        dealer: {
+          select: { name: true, verificationStatus: true },
+        },
+        media: {
+          take: 1,
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    const scored = candidates
+      .map((v) => ({
+        id: v.id,
+        make: v.make,
+        model: v.model,
+        yearModel: v.yearModel,
+        price: Number(v.price),
+        mileage: v.mileage,
+        bodyType: v.bodyType,
+        condition: v.condition,
+        aiTags: v.aiTags,
+        score: this.embeddingService.cosineSimilarity(
+          sourceEmbedding,
+          v.embedding as number[],
+        ),
+        dealer: v.dealer,
+        media: v.media,
+      }))
+      .filter((v) => v.score > 0.5)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    return scored;
+  }
+
+  private async findSimilarWithPgVector(
+    vehicleId: string,
+    sourceEmbedding: number[],
+    limit: number,
+  ): Promise<VehicleSearchResult[]> {
+    const embeddingStr = JSON.stringify(sourceEmbedding);
+
+    const query = Prisma.sql`
+      SELECT 
+        id, 
+        1 - (embedding::text::vector <=> ${embeddingStr}::vector) AS score
+      FROM "Vehicle"
+      WHERE status = 'AVAILABLE' 
+        AND embedding IS NOT NULL 
+        AND id != ${vehicleId}
+      ORDER BY embedding::text::vector <=> ${embeddingStr}::vector
+      LIMIT ${limit};
+    `;
+
+    const rawResults =
+      await this.prisma.$queryRaw<{ id: string; score: number }[]>(query);
+
+    if (rawResults.length === 0) return [];
+
+    const ids = rawResults.map((r) => r.id);
+
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { id: { in: ids } },
+      include: {
+        dealer: {
+          select: { name: true, verificationStatus: true },
+        },
+        media: {
+          take: 1,
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    return rawResults
+      .map((raw) => {
+        const vehicle = vehicles.find((v) => v.id === raw.id);
+        if (!vehicle) return null;
+
+        return {
+          id: vehicle.id,
+          make: vehicle.make,
+          model: vehicle.model,
+          yearModel: vehicle.yearModel,
+          price: Number(vehicle.price),
+          mileage: vehicle.mileage,
+          bodyType: vehicle.bodyType,
+          condition: vehicle.condition,
+          aiTags: vehicle.aiTags,
+          score: raw.score,
+          dealer: vehicle.dealer,
+          media: vehicle.media,
+        };
+      })
+      .filter((v) => v !== null) as VehicleSearchResult[];
+  }
+
+  /**
+   * Hybrid search combining semantic and filters
+   */
+  async hybridSearch(
+    query: string,
+    filters: SearchFilters,
+    limit: number = 10,
+  ): Promise<VehicleSearchResult[]> {
+    // If query is empty, just use filters
+    if (!query.trim()) {
+      return this.filterSearch(filters, limit);
+    }
+
+    return this.searchSemantic(query, limit, filters);
+  }
+
+  /**
+   * Filter-only search (no semantic)
+   */
+  async filterSearch(
+    filters: SearchFilters,
+    limit: number = 20,
+  ): Promise<VehicleSearchResult[]> {
+    const whereClause = this.buildWhereClause(filters);
+
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: {
+        ...whereClause,
+        status: 'AVAILABLE',
+      },
+      include: {
+        dealer: {
+          select: { name: true, verificationStatus: true },
+        },
+        media: {
+          take: 3,
+          orderBy: { order: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    return vehicles.map((v) => ({
+      id: v.id,
+      make: v.make,
+      model: v.model,
+      yearModel: v.yearModel,
+      price: Number(v.price),
+      mileage: v.mileage,
+      bodyType: v.bodyType,
+      condition: v.condition,
+      aiTags: v.aiTags,
+      score: 1.0,
+      dealer: v.dealer,
+      media: v.media,
+    }));
+  }
+
+  private async fallbackTextSearch(
+    query: string,
+    limit: number,
+    filters?: SearchFilters,
+  ): Promise<VehicleSearchResult[]> {
+    const whereClause = this.buildWhereClause(filters);
+
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: {
+        ...whereClause,
+        status: 'AVAILABLE',
+        OR: [
+          { make: { contains: query, mode: 'insensitive' } },
+          { model: { contains: query, mode: 'insensitive' } },
+          { bodyType: { contains: query, mode: 'insensitive' } },
+          { title: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      include: {
+        dealer: {
+          select: { name: true, verificationStatus: true },
+        },
+        media: {
+          take: 3,
+          orderBy: { order: 'asc' },
+        },
+      },
+      take: limit,
+      orderBy: { price: 'asc' },
+    });
+
+    return vehicles.map((v) => ({
+      id: v.id,
+      make: v.make,
+      model: v.model,
+      yearModel: v.yearModel,
+      price: Number(v.price),
+      mileage: v.mileage,
+      bodyType: v.bodyType,
+      condition: v.condition,
+      aiTags: v.aiTags,
+      score: 0.7, // Default score for text search
+      dealer: v.dealer,
+      media: v.media,
+    }));
+  }
+
+  private buildWhereClause(filters?: SearchFilters): Prisma.VehicleWhereInput {
+    if (!filters) return {};
+
+    const where: Prisma.VehicleWhereInput = {};
+
+    if (filters.priceMin || filters.priceMax) {
+      where.price = {};
+      if (filters.priceMin) where.price.gte = filters.priceMin;
+      if (filters.priceMax) where.price.lte = filters.priceMax;
+    }
+
+    if (filters.yearMin || filters.yearMax) {
+      where.yearModel = {};
+      if (filters.yearMin) where.yearModel.gte = filters.yearMin;
+      if (filters.yearMax) where.yearModel.lte = filters.yearMax;
+    }
+
+    if (filters.make) {
+      where.make = { equals: filters.make, mode: 'insensitive' };
+    }
+
+    if (filters.bodyType) {
+      where.bodyType = { equals: filters.bodyType, mode: 'insensitive' };
+    }
+
+    if (filters.condition) {
+      where.condition = filters.condition;
+    }
+
+    return where;
+  }
+
+  async getVehicleById(id: string) {
+    return this.prisma.vehicle.findUnique({
+      where: { id },
+      include: {
+        media: true,
+        dealer: true,
+      },
+    });
+  }
+
+  /**
+   * Get search statistics
+   */
+  async getSearchStats() {
+    const [total, withEmbedding, available] = await Promise.all([
+      this.prisma.vehicle.count(),
+      this.prisma.vehicle.count({
+        where: { embedding: { not: Prisma.DbNull } },
+      }),
+      this.prisma.vehicle.count({ where: { status: 'AVAILABLE' } }),
+    ]);
+
+    return {
+      totalVehicles: total,
+      vehiclesWithEmbedding: withEmbedding,
+      availableVehicles: available,
+      embeddingCoverage:
+        total > 0 ? ((withEmbedding / total) * 100).toFixed(1) + '%' : '0%',
+    };
+  }
+}

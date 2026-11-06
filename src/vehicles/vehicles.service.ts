@@ -47,7 +47,8 @@ export class VehiclesService {
     const { page = 1, limit = 20, ...rest } = filters;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.VehicleWhereInput = {};
+    // Carro vendido fica no banco por causa de favoritos e interações, mas sai da vitrine.
+    const where: Prisma.VehicleWhereInput = { status: 'AVAILABLE' };
 
     if (rest.make) where.make = { equals: rest.make, mode: 'insensitive' };
     if (rest.model) where.model = { contains: rest.model, mode: 'insensitive' };

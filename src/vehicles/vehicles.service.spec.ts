@@ -96,6 +96,19 @@ describe('VehiclesService', () => {
       expect(prisma.vehicle.count).toHaveBeenCalled();
     });
 
+    it('should list only available vehicles, in the page and in the total', async () => {
+      mockPrismaService.vehicle.findMany.mockResolvedValue([]);
+      mockPrismaService.vehicle.count.mockResolvedValue(0);
+
+      await service.findAll();
+
+      const available = expect.objectContaining({
+        where: expect.objectContaining({ status: 'AVAILABLE' }),
+      });
+      expect(prisma.vehicle.findMany).toHaveBeenLastCalledWith(available);
+      expect(prisma.vehicle.count).toHaveBeenLastCalledWith(available);
+    });
+
     it('should apply filters when provided', async () => {
       mockPrismaService.vehicle.findMany.mockResolvedValue([mockVehicle]);
       mockPrismaService.vehicle.count.mockResolvedValue(1);

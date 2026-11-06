@@ -22,9 +22,10 @@ function Pedir($nome, $pergunta) {
 if (Test-Path .env) { Parar 'Já existe um .env aqui. Renomeie antes de rodar, para não misturar bancos.' }
 
 $banco = Pedir 'DATABASE_URL' 'Cole a conexão direta do Neon (não aparece na tela)'
+# No Neon, a conexão direta é o mesmo endereço sem -pooler.
+$banco = $banco -replace '-pooler(?=\.)', ''
 if ($banco -notmatch '^postgres(ql)?://[^@\s]+@([^/:\s?]+)') { Parar 'Isso não é uma conexão postgres válida. Nada foi gravado.' }
 $servidor = $Matches[2]
-if ($servidor -match '-pooler') { Parar 'Use a conexão direta do Neon: desligue o Connection pooling. Nada foi gravado.' }
 
 $chave = Pedir 'OPENAI_API_KEY' 'Cole a chave da OpenAI (não aparece na tela)'
 if ($chave -notmatch '^sk-\S{20,}$') { Parar 'Isso não parece uma chave da OpenAI. Nada foi gravado.' }

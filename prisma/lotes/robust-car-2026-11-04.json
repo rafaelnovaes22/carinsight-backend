@@ -138,27 +138,6 @@
       ]
     },
     {
-      "id": "hyundai-hb20-2023",
-      "make": "HYUNDAI",
-      "model": "HB20",
-      "version": "1.0 COMFORT",
-      "yearFab": 2022,
-      "yearModel": 2023,
-      "cor": "Preto",
-      "km": 137051,
-      "price": 63990,
-      "bodyType": "hatch",
-      "transmission": "Manual",
-      "engine": "1.0",
-      "features": [
-        "Completo",
-        "Multimídia",
-        "Controle de som e velocidade no volante",
-        "Laudo aprovado (informado pela loja)"
-      ],
-      "fotos": []
-    },
-    {
       "id": "vw-saveiro-2025",
       "make": "VOLKSWAGEN",
       "model": "SAVEIRO",

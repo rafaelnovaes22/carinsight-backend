@@ -108,12 +108,12 @@ describe('lote da Robust Car de 04/11/2026', () => {
     ),
   ) as Lote;
 
-  it('é válido, com 6 carros prontos e dois aguardando foto', () => {
+  it('é válido, com 6 carros prontos e a Saveiro aguardando foto', () => {
     expect(validarLote(real)).toEqual([]);
     expect(carrosComFoto(real)).toHaveLength(6);
     expect(
       real.carros.filter((c) => c.fotos.length === 0).map((c) => c.model),
-    ).toEqual(['HB20', 'SAVEIRO']);
+    ).toEqual(['SAVEIRO']);
   });
 
   it('o Fit azul avisa a passagem por leilão no próprio nome', () => {

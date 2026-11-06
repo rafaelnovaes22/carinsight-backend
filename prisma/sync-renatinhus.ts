@@ -255,6 +255,9 @@ async function main(): Promise<void> {
     if (unknownModels.length > 0) {
       console.log(`\nModelos sem carroceria: ${unknownModels.join(', ')}`);
     }
+    console.log(
+      '\nCadastro público da loja: passa a ter o endereço em São Paulo, sem telefone.',
+    );
     console.log('\nSimulação: nada foi gravado. Use --apply para gravar.');
     return;
   }
@@ -284,6 +287,13 @@ async function main(): Promise<void> {
     printPlan(plan, details);
 
     const touched = await applyPlan(prisma, dealer.id, plan, details);
+    // O contato do comprador é o canal do piloto: o telefone da loja não fica na API pública.
+    await prisma.dealer.update({
+      where: { id: dealer.id },
+      data: {
+        contactInfo: { address: 'Av. São Miguel, 9299 - São Paulo - SP' },
+      },
+    });
     console.log(`\nGravado: ${touched.length} veículos publicados.`);
 
     const embeddings = new EmbeddingService(prisma as unknown as PrismaService);

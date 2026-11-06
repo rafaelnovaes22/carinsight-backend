@@ -26,6 +26,10 @@ $banco = Pedir 'DATABASE_URL' 'Cole a conexão direta do Neon (não aparece na t
 $banco = $banco -replace '-pooler(?=\.)', ''
 if ($banco -notmatch '^postgres(ql)?://[^@\s]+@([^/:\s?]+)') { Parar 'Isso não é uma conexão postgres válida. Nada foi gravado.' }
 $servidor = $Matches[2]
+# O Neon suspende o banco parado e o Prisma desiste em 5 s: dá tempo de ele acordar.
+if ($banco -notmatch 'connect_timeout=') {
+    $banco += $(if ($banco.Contains('?')) { '&' } else { '?' }) + 'connect_timeout=30'
+}
 
 $chave = Pedir 'OPENAI_API_KEY' 'Cole a chave da OpenAI (não aparece na tela)'
 if ($chave -notmatch '^sk-\S{20,}$') { Parar 'Isso não parece uma chave da OpenAI. Nada foi gravado.' }

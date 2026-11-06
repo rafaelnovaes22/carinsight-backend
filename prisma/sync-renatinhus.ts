@@ -24,8 +24,8 @@ import {
   VehicleDetail,
 } from '../src/stock-sync/renatinhus.parser';
 
-export const DEALER_NAME = "Renatinhu's Cars";
-export const LISTING_URL =
+const DEALER_NAME = "Renatinhu's Cars";
+const LISTING_URL =
   'https://ssl9212.websiteseguro.com/armazena1/atw_site/site/atw6944b/Estoque.aspx?nu=-1';
 const detailUrl = (sourceId: string) =>
   `https://armazena.net/atw_site/site/atw6944b/detalhe.aspx?id=${sourceId}`;
@@ -35,7 +35,7 @@ const DELAY_BETWEEN_REQUESTS_MS = 500;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function fetchText(url: string): Promise<string> {
+async function fetchText(url: string): Promise<string> {
   const response = await fetch(url, {
     headers: { 'User-Agent': USER_AGENT },
     signal: AbortSignal.timeout(30_000),
@@ -44,7 +44,7 @@ export async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
-export async function fetchDetails(
+async function fetchDetails(
   vehicles: ListedVehicle[],
 ): Promise<Map<string, VehicleDetail>> {
   const details = new Map<string, VehicleDetail>();
@@ -95,10 +95,7 @@ async function readExistingFromApi(): Promise<ExistingVehicle[]> {
     }));
 }
 
-export function buildVehicleData(
-  vehicle: ListedVehicle,
-  detail: VehicleDetail,
-) {
+function buildVehicleData(vehicle: ListedVehicle, detail: VehicleDetail) {
   const name = parseVehicleName(vehicle.title);
   const technicalSpecs: Prisma.InputJsonObject = {
     fuel: vehicle.fuel,
@@ -126,13 +123,10 @@ export function buildVehicleData(
   };
 }
 
-export const mediaData = (detail: VehicleDetail) =>
+const mediaData = (detail: VehicleDetail) =>
   detail.photos.map((url, order) => ({ url, order }));
 
-export function printPlan(
-  plan: SyncPlan,
-  details: Map<string, VehicleDetail>,
-): void {
+function printPlan(plan: SyncPlan, details: Map<string, VehicleDetail>): void {
   const line = (vehicle: ListedVehicle) => {
     const detail = details.get(vehicle.sourceId);
     const body =
@@ -318,9 +312,7 @@ async function main(): Promise<void> {
   }
 }
 
-if (require.main === module) {
-  main().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exit(1);
-  });
-}
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

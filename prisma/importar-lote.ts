@@ -32,7 +32,7 @@ const slug = (texto: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-export async function conferirMidia(lote: Lote): Promise<void> {
+async function conferirMidia(lote: Lote): Promise<void> {
   const urls = carrosComFoto(lote).flatMap((carro) => [
     ...carro.fotos,
     ...(carro.video ? [carro.video] : []),
@@ -161,9 +161,7 @@ async function main(): Promise<void> {
   }
 }
 
-if (require.main === module) {
-  main().catch((erro: unknown) => {
-    console.error(erro instanceof Error ? erro.message : erro);
-    process.exit(1);
-  });
-}
+main().catch((erro: unknown) => {
+  console.error(erro instanceof Error ? erro.message : erro);
+  process.exit(1);
+});

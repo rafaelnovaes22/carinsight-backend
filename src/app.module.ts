@@ -10,7 +10,6 @@ import { InteractionsModule } from './interactions/interactions.module';
 import { DealersModule } from './dealers/dealers.module';
 import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
-import { PublicacaoModule } from './publicacao/publicacao.module';
 
 @Module({
   imports: [
@@ -39,7 +38,6 @@ import { PublicacaoModule } from './publicacao/publicacao.module';
     InteractionsModule,
     DealersModule,
     AiModule,
-    PublicacaoModule,
   ],
   controllers: [AppController],
   providers: [

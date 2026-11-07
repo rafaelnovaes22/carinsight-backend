@@ -29,6 +29,7 @@ export class LeadService {
       model: rec.vehicle?.model || '',
       yearModel: rec.vehicle?.yearModel || 0,
       price: rec.vehicle?.price || 0,
+      dealerName: rec.vehicle?.dealerName || null,
     }));
 
     const financing = profile.wantsFinancing
@@ -101,8 +102,11 @@ export class LeadService {
 
     const vehicle = state.recommendations[0]?.vehicle;
     if (vehicle) {
+      const loja = vehicle.dealerName
+        ? `, da concessionária ${vehicle.dealerName}`
+        : '';
       parts.push(
-        `Tenho interesse no ${vehicle.make} ${vehicle.model} ${vehicle.yearModel} (R$ ${vehicle.price.toLocaleString('pt-BR')}).`,
+        `Tenho interesse no ${vehicle.make} ${vehicle.model} ${vehicle.yearModel} (R$ ${vehicle.price.toLocaleString('pt-BR')})${loja}.`,
       );
     } else if (state.profile.bodyType || state.profile.budget) {
       const desc: string[] = [];
@@ -164,8 +168,11 @@ export class LeadService {
       lines.push(``, `Veículos de interesse:`);
       state.recommendations.slice(0, 3).forEach((rec, i) => {
         if (rec.vehicle) {
+          const loja = rec.vehicle.dealerName
+            ? ` - Concessionária: ${rec.vehicle.dealerName}`
+            : '';
           lines.push(
-            `${i + 1}. ${rec.vehicle.make} ${rec.vehicle.model} ${rec.vehicle.yearModel} - R$ ${rec.vehicle.price.toLocaleString('pt-BR')}`,
+            `${i + 1}. ${rec.vehicle.make} ${rec.vehicle.model} ${rec.vehicle.yearModel} - R$ ${rec.vehicle.price.toLocaleString('pt-BR')}${loja}`,
           );
         }
       });

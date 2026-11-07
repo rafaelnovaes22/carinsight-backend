@@ -87,6 +87,7 @@ export interface VehicleRecommendation {
     mileage: number;
     bodyType: string;
     features?: string[];
+    dealerName?: string;
   };
 }
 

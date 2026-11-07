@@ -52,6 +52,7 @@ interface VehicleSearchResult {
   bodyType: string;
   aiTags: string[];
   score: number;
+  dealer?: { name: string };
 }
 
 /**
@@ -194,6 +195,7 @@ export class ConversationGraphService implements OnModuleInit {
               mileage: result.mileage,
               bodyType: result.bodyType,
               features: result.aiTags,
+              dealerName: result.dealer?.name,
             },
           }),
         );
@@ -571,6 +573,7 @@ export class ConversationGraphService implements OnModuleInit {
         price: number;
         mileage?: number;
         bodyType?: string;
+        dealerName?: string;
       };
     },
   ): Promise<ConversationResponse> {
@@ -617,6 +620,7 @@ export class ConversationGraphService implements OnModuleInit {
                 price: vehicle.price,
                 mileage: vehicle.mileage || 0,
                 bodyType: vehicle.bodyType || '',
+                dealerName: vehicle.dealerName,
               },
             },
           ];

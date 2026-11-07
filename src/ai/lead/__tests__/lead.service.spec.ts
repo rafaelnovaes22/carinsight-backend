@@ -38,6 +38,7 @@ describe('LeadService', () => {
           price: 89900,
           mileage: 35000,
           bodyType: 'suv',
+          dealerName: 'Loja Exemplo',
         },
       },
     ],
@@ -101,6 +102,28 @@ describe('LeadService', () => {
     expect(text).toContain('financiamento');
     expect(text).toContain('agendar uma visita');
     expect(handoff.waLink.length).toBeLessThan(2000);
+  });
+
+  it('tells which dealership the car belongs to in the message, summary and lead', async () => {
+    const handoff = await service.createLeadFromState(baseState());
+    const text = decodeURIComponent(handoff.waLink.split('?text=')[1]);
+    expect(text).toContain(
+      'Jeep Renegade 2022 (R$ 89.900), da concessionária Loja Exemplo.',
+    );
+    expect(handoff.summary).toContain('Concessionária: Loja Exemplo');
+    const created = prisma.lead.create.mock.calls[0][0].data;
+    expect(created.vehicles[0].dealerName).toBe('Loja Exemplo');
+  });
+
+  it('leaves no gap in the message when the dealership is unknown', async () => {
+    const state = baseState();
+    state.recommendations[0].vehicle!.dealerName = undefined;
+    const handoff = await service.createLeadFromState(state);
+    const text = decodeURIComponent(handoff.waLink.split('?text=')[1]);
+    expect(text).toContain('Jeep Renegade 2022 (R$ 89.900).');
+    expect(text).not.toContain('concessionária');
+    expect(handoff.summary).not.toContain('Concessionária');
+    expect(text).not.toContain('undefined');
   });
 
   it('falls back to a generic name and search description without vehicle', async () => {

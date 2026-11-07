@@ -397,6 +397,50 @@ describe('ConversationGraphService', () => {
       expect(await service.getActiveSessionsCount()).toBe(initialCount + 1);
     });
 
+    it('keeps the dealership of the car the customer chose', async () => {
+      await service.processMessage('lead-loja', 'Quero esse carro', {
+        interestedVehicle: {
+          id: 'vehicle-123',
+          make: 'Toyota',
+          model: 'Corolla',
+          yearModel: 2023,
+          price: 120000,
+          dealerName: 'Loja Exemplo',
+        },
+      });
+
+      const session = await service.getSession('lead-loja');
+      expect(session?.state.recommendations[0].vehicle?.dealerName).toBe(
+        'Loja Exemplo',
+      );
+    });
+
+    it('keeps the dealership of the cars found by the search', async () => {
+      vectorSearchService.searchSemantic.mockResolvedValue([
+        {
+          id: 'vehicle-1',
+          make: 'Toyota',
+          model: 'Corolla',
+          yearModel: 2022,
+          price: 95000,
+          mileage: 30000,
+          bodyType: 'Sedan',
+          condition: 'USED',
+          aiTags: [],
+          score: 0.85,
+          dealer: { name: 'Loja Exemplo', verificationStatus: 'PENDING' },
+        },
+      ]);
+
+      await service.processMessage('busca-loja', 'Oi, sou Pedro');
+      await service.processMessage('busca-loja', 'Quero um sedan até 100 mil');
+
+      const session = await service.getSession('busca-loja');
+      expect(session?.state.recommendations[0].vehicle?.dealerName).toBe(
+        'Loja Exemplo',
+      );
+    });
+
     it('should set vehicle as lead when interestedVehicle is provided', async () => {
       const interestedVehicle = {
         id: 'vehicle-123',

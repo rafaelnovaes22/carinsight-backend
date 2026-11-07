@@ -26,6 +26,7 @@ interface VehicleData {
   price: number;
   mileage?: number;
   bodyType?: string;
+  dealerName?: string;
 }
 
 export interface ChatResponse {
@@ -89,6 +90,7 @@ export class ChatService {
           price: Number(vehicle.price),
           mileage: vehicle.mileage,
           bodyType: vehicle.bodyType,
+          dealerName: vehicle.dealer?.name,
         };
         vehicleContext = `Estou interessado no ${vehicle.make} ${vehicle.model} ${vehicle.yearModel}`;
       }
